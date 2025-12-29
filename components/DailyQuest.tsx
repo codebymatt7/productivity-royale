@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getTodayDateString } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -47,7 +47,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
   const [confettiTrigger, setConfettiTrigger] = useState<string | null>(null);
   const [today, setToday] = useState(getTodayDateString());
   const [dailyAffirmation, setDailyAffirmation] = useState<string>("");
-  const [isDeleting, setIsDeleting] = useState(false); // Flag to prevent useEffect from overwriting during delete
+  const isDeletingRef = useRef(false); // Use ref to prevent useEffect from overwriting during delete (refs don't trigger re-renders)
+  const recentlyDeletedRef = useRef<Set<string>>(new Set()); // Track recently deleted categories
 
   useEffect(() => {
     const checkDate = () => {
@@ -99,7 +100,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       }
       
       // Load habit logs (skip if we're in the middle of deleting to prevent overwriting state)
-      if (!isDeleting) {
+      if (!isDeletingRef.current) {
         const { data } = await supabase
           .from("logs")
           .select("category, value, points")
@@ -107,21 +108,36 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           .eq("log_date", today);
 
         if (data) {
-          const todaySet = new Set(data.map((log) => log.category));
-          setTodayCompleted(todaySet);
-          
+          const todaySet = new Set<string>();
           const valuesMap = new Map<string, number>();
+          
           data.forEach((log) => {
-            // Convert to number, default to 8 for sleep, 0 for others
-            const numValue = Number(log.value);
-            if (log.category === "sleep") {
-              // Sleep defaults to 8 if no value or 0
-              valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
-            } else {
-              valuesMap.set(log.category, numValue || 0);
+            // Skip categories that were recently deleted (prevent race condition)
+            if (!recentlyDeletedRef.current.has(log.category)) {
+              todaySet.add(log.category);
+              
+              // Convert to number, default to 8 for sleep, 0 for others
+              const numValue = Number(log.value);
+              if (log.category === "sleep") {
+                // Sleep defaults to 8 if no value or 0
+                valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
+              } else {
+                valuesMap.set(log.category, numValue || 0);
+              }
             }
           });
-          setValues(valuesMap);
+          
+          // Only update state if we have data (don't overwrite with empty if we're deleting)
+          if (todaySet.size > 0 || data.length === 0) {
+            setTodayCompleted(todaySet);
+            setValues(valuesMap);
+          }
+        } else {
+          // No data found - only clear if we're not deleting
+          if (recentlyDeletedRef.current.size === 0) {
+            setTodayCompleted(new Set());
+            setValues(new Map());
+          }
         }
       }
     }
@@ -129,7 +145,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     loadTodayLogs();
 
     return () => clearInterval(interval);
-  }, [userId, today, isDeleting]); // Include isDeleting to prevent reload during delete
+  }, [userId, today]); // Don't include isDeleting ref - it doesn't need to trigger re-renders
 
   const calculatePoints = (quest: Quest, value: number): number => {
     if (quest.type === "binary") {
@@ -190,8 +206,9 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     if (isCompleted) {
       console.log("Uncompleting habit:", quest.category, "for date:", today);
       
-      // Set flag to prevent useEffect from overwriting our state
-      setIsDeleting(true);
+      // Set ref flag to prevent useEffect from overwriting our state
+      isDeletingRef.current = true;
+      recentlyDeletedRef.current.add(quest.category);
       
       // Toggle off - delete the log and subtract points
       const supabase = createClient();
@@ -208,6 +225,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       if (fetchError) {
         console.error("Error fetching log to delete:", fetchError);
         alert(`Failed to uncomplete habit: ${fetchError.message}`);
+        isDeletingRef.current = false;
+        recentlyDeletedRef.current.delete(quest.category);
         return;
       }
       
@@ -227,6 +246,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           }
           setValues(newValues);
         }
+        isDeletingRef.current = false;
+        recentlyDeletedRef.current.delete(quest.category);
         return;
       }
       
@@ -242,12 +263,14 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       if (deleteError) {
         console.error("Error deleting log:", deleteError);
         alert(`Failed to uncomplete habit: ${deleteError.message}`);
+        isDeletingRef.current = false;
+        recentlyDeletedRef.current.delete(quest.category);
         return;
       }
       
       console.log("Log deleted successfully, updating UI state");
       
-      // Update local state immediately (optimistic update)
+      // Update local state immediately (optimistic update) - DON'T reload from DB
       const newTodayCompleted = new Set(todayCompleted);
       newTodayCompleted.delete(quest.category);
       setTodayCompleted(newTodayCompleted);
@@ -263,51 +286,14 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         setValues(newValues);
       }
       
-      // Force reload from database after a delay to ensure trigger completes
-      // Use a longer delay to ensure the database trigger has finished
-      setTimeout(async () => {
-        const supabase2 = createClient();
-        const { data: refreshedData, error: refreshError } = await supabase2
-          .from("logs")
-          .select("category, value, points")
-          .eq("user_id", userId)
-          .eq("log_date", today);
-        
-        if (refreshError) {
-          console.error("Error refreshing logs:", refreshError);
-          setIsDeleting(false);
-          return;
-        }
-        
-        if (refreshedData && refreshedData.length > 0) {
-          const refreshedSet = new Set(refreshedData.map((log) => log.category));
-          setTodayCompleted(refreshedSet);
-          
-          const refreshedValues = new Map<string, number>();
-          refreshedData.forEach((log) => {
-            const numValue = Number(log.value);
-            if (log.category === "sleep") {
-              refreshedValues.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
-            } else {
-              refreshedValues.set(log.category, numValue || 0);
-            }
-          });
-          setValues(refreshedValues);
-        } else {
-          // No logs found - ensure state is cleared
-          setTodayCompleted(new Set());
-          const clearedValues = new Map(values);
-          if (quest.type === "sleep") {
-            clearedValues.set(quest.category, 8);
-          } else {
-            clearedValues.set(quest.category, 0);
-          }
-          setValues(clearedValues);
-        }
-        
-        // Clear the deleting flag after reload
-        setIsDeleting(false);
-      }, 1500); // Increased delay to ensure trigger completes
+      // Clear the flag after a delay (don't reload from DB - trust the delete worked)
+      setTimeout(() => {
+        isDeletingRef.current = false;
+        // Keep it in recentlyDeleted for a bit longer to prevent accidental reload
+        setTimeout(() => {
+          recentlyDeletedRef.current.delete(quest.category);
+        }, 2000);
+      }, 500);
       
       return;
     }

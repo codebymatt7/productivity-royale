@@ -38,38 +38,46 @@ export default function Leaderboard() {
         setCurrentUserId(user.id);
       }
 
-      // Query character stats with user info
-      // Get ALL users with stats, including those with 0 points
-      let { data: stats, error: statsError } = await supabase
-        .from("character_stats")
-        .select(`
-          total_points,
-          user_id,
-          users!inner(id, username, display_name)
-        `)
-        .order("total_points", { ascending: false })
-        .limit(50); // Get more users to ensure we see everyone
+      // Query ALL users first, then get their stats
+      // This ensures we see all users, not just those with stats
+      const { data: allUsers, error: usersError } = await supabase
+        .from("users")
+        .select("id, username, display_name")
+        .limit(50);
       
-      // Also ensure we get the current user even if they have 0 points or aren't in top 50
-      if (user) {
-        const { data: currentUserStats } = await supabase
+      if (usersError) {
+        console.error("Error loading users:", usersError);
+      }
+      
+      // Now get stats for all users
+      let stats: any[] = [];
+      if (allUsers && allUsers.length > 0) {
+        const userIds = allUsers.map(u => u.id);
+        const { data: allStats, error: statsError } = await supabase
           .from("character_stats")
-          .select(`
-            total_points,
-            user_id,
-            users!inner(id, username, display_name)
-          `)
-          .eq("user_id", user.id)
-          .maybeSingle();
+          .select("total_points, user_id")
+          .in("user_id", userIds);
         
-        // If current user exists and isn't in the stats list, add them
-        if (currentUserStats && (!stats || !stats.some(s => s.user_id === user.id))) {
-          if (!stats) {
-            stats = [currentUserStats];
-          } else {
-            stats = [...stats, currentUserStats];
-          }
+        if (statsError) {
+          console.error("Error loading stats:", statsError);
         }
+        
+        // Combine users with their stats (default to 0 if no stats)
+        stats = allUsers.map(u => {
+          const userStats = allStats?.find(s => s.user_id === u.id);
+          return {
+            user_id: u.id,
+            total_points: userStats?.total_points ?? 0,
+            users: {
+              id: u.id,
+              username: u.username,
+              display_name: u.display_name
+            }
+          };
+        });
+        
+        // Sort by total_points descending
+        stats.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
       }
 
       if (statsError) {
