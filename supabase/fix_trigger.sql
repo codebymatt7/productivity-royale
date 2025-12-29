@@ -1,5 +1,6 @@
 -- Fix the trigger to ensure character_stats entries exist before updating
 -- This ensures points are always added correctly
+-- SAFE VERSION - No DROP statements
 
 CREATE OR REPLACE FUNCTION update_character_stats()
 RETURNS TRIGGER AS $$
@@ -58,10 +59,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Ensure the trigger exists
-DROP TRIGGER IF EXISTS on_log_created ON public.logs;
-CREATE TRIGGER on_log_created
-  AFTER INSERT ON public.logs
-  FOR EACH ROW
-  EXECUTE FUNCTION update_character_stats();
+-- Ensure the trigger exists (safe - only creates if it doesn't exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'on_log_created' 
+    AND tgrelid = 'public.logs'::regclass
+  ) THEN
+    CREATE TRIGGER on_log_created
+      AFTER INSERT ON public.logs
+      FOR EACH ROW
+      EXECUTE FUNCTION update_character_stats();
+  END IF;
+END $$;
 
