@@ -129,7 +129,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     loadTodayLogs();
 
     return () => clearInterval(interval);
-  }, [userId, today]);
+  }, [userId, today, isDeleting]); // Include isDeleting to prevent reload during delete
 
   const calculatePoints = (quest: Quest, value: number): number => {
     if (quest.type === "binary") {
