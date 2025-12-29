@@ -1,0 +1,212 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { ArrowUp, ArrowDown } from "lucide-react";
+
+interface LeaderboardEntry {
+  username: string;
+  total_points: number;
+  rank: number;
+  level: number;
+  tier: "King" | "Squire" | "Peasant";
+  rankChange: "up" | "down" | "same";
+  isCurrentUser?: boolean;
+}
+
+// Dummy data
+const dummyUsers: Omit<LeaderboardEntry, "rank">[] = [
+  { username: "Chad Thundercock", total_points: 25000, level: 52, tier: "King", rankChange: "up" },
+  { username: "Goggins", total_points: 18000, level: 48, tier: "Squire", rankChange: "same" },
+  { username: "The Grinder", total_points: 12000, level: 35, tier: "Squire", rankChange: "up" },
+  { username: "Iron Will", total_points: 8500, level: 28, tier: "Squire", rankChange: "down" },
+  { username: "The Slacker", total_points: 100, level: 2, tier: "Peasant", rankChange: "same" },
+];
+
+export default function Leaderboard() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserEntry, setCurrentUserEntry] = useState<LeaderboardEntry | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadLeaderboard() {
+      const supabase = createClient();
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+
+      // Query character stats with user info
+      const { data: stats, error: statsError } = await supabase
+        .from("character_stats")
+        .select(`
+          total_points,
+          user_id,
+          users!inner(id, username)
+        `)
+        .order("total_points", { ascending: false })
+        .limit(10);
+
+      if (statsError) {
+        console.error("Error loading leaderboard stats:", statsError);
+      }
+
+      const realEntries: LeaderboardEntry[] = [];
+      if (stats && stats.length > 0) {
+        // Build entries
+        stats.forEach((stat, index) => {
+          const totalPoints = stat.total_points || 0;
+          const level = Math.floor(totalPoints / 100);
+          let tier: "King" | "Squire" | "Peasant" = "Peasant";
+          if (totalPoints >= 1000) tier = "King";
+          else if (totalPoints >= 500) tier = "Squire";
+
+          const userData = stat.users as any;
+          const username = userData?.username || "Unknown";
+
+          const entry: LeaderboardEntry = {
+            username,
+            total_points: totalPoints,
+            rank: index + 1,
+            level,
+            tier,
+            rankChange: index < 2 ? "up" : index === 2 ? "same" : "down",
+            isCurrentUser: stat.user_id === user?.id,
+          };
+
+          if (stat.user_id === user?.id) {
+            setCurrentUserEntry(entry);
+          } else {
+            realEntries.push(entry);
+          }
+        });
+      }
+
+      const allEntries: LeaderboardEntry[] = [
+        ...dummyUsers.map((user, index) => ({
+          ...user,
+          rank: index + 1,
+        })),
+        ...realEntries.map((entry) => ({
+          ...entry,
+          rank: entry.rank + dummyUsers.length,
+        })),
+      ].sort((a, b) => b.total_points - a.total_points)
+      .slice(0, 5)
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }));
+
+      setEntries(allEntries);
+      setLoading(false);
+    }
+
+    loadLeaderboard();
+    const interval = setInterval(loadLeaderboard, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getTierRingColor = (tier: string) => {
+    switch (tier) {
+      case "King": return "ring-yellow-500/50";
+      case "Squire": return "ring-gray-400/50";
+      case "Peasant": return "ring-gray-600/50";
+      default: return "ring-gray-600/50";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Leaderboard</h3>
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
+      <h3 className="text-base sm:text-lg font-semibold text-white mb-4">Leaderboard</h3>
+      <div className="space-y-2">
+        {entries.map((entry) => (
+          <div
+            key={entry.rank}
+            className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+              entry.isCurrentUser
+                ? "bg-blue-500/10 border border-blue-500/30"
+                : entry.rank === 1
+                ? "bg-yellow-500/10 border border-yellow-500/30"
+                : entry.rank <= 3
+                ? "bg-white/5"
+                : "bg-transparent"
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold relative ${
+                entry.rank === 1
+                  ? "bg-yellow-500 text-black"
+                  : entry.rank === 2
+                  ? "bg-gray-400 text-black"
+                  : entry.rank === 3
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-700 text-gray-300"
+              }`}>
+                {entry.rank}
+                {/* Avatar Ring */}
+                <div className={`absolute inset-0 rounded-full ring-2 ${getTierRingColor(entry.tier)}`} />
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm truncate ${
+                    entry.isCurrentUser ? "text-blue-400 font-semibold" : "text-white"
+                  }`}>
+                    {entry.username}
+                  </span>
+                  {entry.rankChange === "up" && (
+                    <ArrowUp className="w-3 h-3 text-green-400 flex-shrink-0" />
+                  )}
+                  {entry.rankChange === "down" && (
+                    <ArrowDown className="w-3 h-3 text-red-400 flex-shrink-0" />
+                  )}
+                </div>
+                <div className="text-xs text-gray-400">Lv.{entry.level} • {entry.tier}</div>
+              </div>
+            </div>
+            <span className="text-sm text-gray-400 flex-shrink-0 ml-3">
+              {entry.total_points.toLocaleString()}
+            </span>
+          </div>
+        ))}
+
+        {/* Current User (if not in top 5) */}
+        {currentUserEntry && !entries.some((e) => e.isCurrentUser) && (
+          <div className="mt-3 pt-3 border-t border-dark-border">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold bg-blue-500 text-white relative">
+                  {currentUserEntry.rank}
+                  <div className={`absolute inset-0 rounded-full ring-2 ${getTierRingColor(currentUserEntry.tier)}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-blue-400 font-semibold truncate">
+                      {currentUserEntry.username} (You)
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">Lv.{currentUserEntry.level} • {currentUserEntry.tier}</div>
+                </div>
+              </div>
+              <span className="text-sm text-gray-400 flex-shrink-0 ml-3">
+                {currentUserEntry.total_points.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

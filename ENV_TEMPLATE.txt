@@ -1,0 +1,10 @@
+# Copy this file to .env.local and fill in your Supabase credentials
+
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# Instructions:
+# 1. Copy this file: cp ENV_TEMPLATE.txt .env.local
+# 2. Open .env.local and replace the placeholder values with your actual Supabase credentials
+# 3. Get your credentials from: Supabase Dashboard → Settings → API
+

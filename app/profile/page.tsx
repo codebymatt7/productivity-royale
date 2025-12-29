@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Mail, User as UserIcon, Calendar } from "lucide-react";
+import Link from "next/link";
+
+export default function ProfilePage() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [createdAt, setCreatedAt] = useState<string>("");
+  const [stats, setStats] = useState({
+    total_points: 0,
+    strength: 0,
+    intelligence: 0,
+    charisma: 0,
+    willpower: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    async function loadProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/auth");
+        return;
+      }
+
+      setUserId(user.id);
+      setEmail(user.email || "");
+
+      // Get user profile
+      const { data: profile } = await supabase
+        .from("users")
+        .select("username, created_at")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setUsername(profile.username);
+        setCreatedAt(new Date(profile.created_at).toLocaleDateString());
+      }
+
+      // Get character stats
+      const { data: characterStats } = await supabase
+        .from("character_stats")
+        .select("total_points, strength, intelligence, charisma, willpower")
+        .eq("user_id", user.id)
+        .single();
+
+      if (characterStats) {
+        setStats(characterStats);
+      }
+
+      setLoading(false);
+    }
+
+    loadProfile();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <div className="text-gray-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-dark-bg">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+
+        <div className="bg-dark-card border border-dark-border rounded-lg p-8">
+          <h1 className="text-3xl font-semibold text-white mb-8">Account Details</h1>
+
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 pb-6 border-b border-dark-border">
+              <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <UserIcon className="w-8 h-8 text-blue-400" />
+              </div>
+              <div>
+                <div className="text-xl font-semibold text-white">{username}</div>
+                <div className="text-sm text-gray-400">Member since {createdAt}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </label>
+                <div className="text-white">{email}</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 flex items-center gap-2">
+                  <UserIcon className="w-4 h-4" />
+                  Username
+                </label>
+                <div className="text-white">{username}</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Account Created
+                </label>
+                <div className="text-white">{createdAt}</div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Total Points</label>
+                <div className="text-2xl font-semibold text-blue-400">{stats.total_points}</div>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-dark-border">
+              <h2 className="text-xl font-semibold text-white mb-4">Character Stats</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-dark-bg border border-dark-border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-red-400 mb-1">{stats.strength}</div>
+                  <div className="text-xs text-gray-400">Strength</div>
+                </div>
+                <div className="bg-dark-bg border border-dark-border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-400 mb-1">{stats.intelligence}</div>
+                  <div className="text-xs text-gray-400">Intelligence</div>
+                </div>
+                <div className="bg-dark-bg border border-dark-border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-400 mb-1">{stats.charisma}</div>
+                  <div className="text-xs text-gray-400">Charisma</div>
+                </div>
+                <div className="bg-dark-bg border border-dark-border rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-400 mb-1">{stats.willpower}</div>
+                  <div className="text-xs text-gray-400">Willpower</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
