@@ -122,7 +122,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
               const numValue = Number(log.value);
               if (log.category === "sleep") {
                 // Sleep defaults to 8 if no value or 0
-                valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
+                const sleepValue = (numValue > 0 && !isNaN(numValue)) ? numValue : 8;
+                valuesMap.set(log.category, sleepValue);
               } else {
                 valuesMap.set(log.category, numValue || 0);
               }
@@ -693,15 +694,12 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 </div>
               </div>
 
-              {/* Sleep Input - Hours:Minutes Format */}
+              {/* Sleep Input - Decimal with +/- buttons */}
               {isCompleted ? (
                 <div className="mt-auto space-y-2">
                   <div className="text-center">
                     <div className="text-lg font-bold text-white mb-1">
-                      {(() => {
-                        const { hours, minutes } = decimalToHoursMinutes(currentValue || 8);
-                        return `${hours}h ${minutes}m`;
-                      })()}
+                      {currentValue || 8} Hours
                     </div>
                   </div>
                   <motion.button
@@ -716,70 +714,77 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 </div>
               ) : (
                 <div className="mt-auto space-y-2">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={sleepHours}
-                        onChange={(e) => {
-                          const hours = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                          setSleepHours(hours);
-                          const decimal = hoursMinutesToDecimal(hours, sleepMinutes);
-                          setValues(new Map(values).set(quest.category, decimal));
-                        }}
-                        className="w-12 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
-                        min="0"
-                        max="24"
-                        placeholder="8"
-                      />
-                      <span className="text-white/60 text-sm">h</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={sleepMinutes}
-                        onChange={(e) => {
-                          const minutes = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
-                          setSleepMinutes(minutes);
-                          const decimal = hoursMinutesToDecimal(sleepHours, minutes);
-                          setValues(new Map(values).set(quest.category, decimal));
-                        }}
-                        className="w-12 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
-                        min="0"
-                        max="59"
-                        placeholder="0"
-                      />
-                      <span className="text-white/60 text-sm">m</span>
-                    </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => {
+                        const newValue = Math.max(0, (currentValue || 8) - 0.5);
+                        setValues(new Map(values).set(quest.category, newValue));
+                      }}
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={currentValue > 0 ? currentValue : ""}
+                      onChange={(e) => {
+                        const inputVal = e.target.value;
+                        if (inputVal === "" || inputVal === ".") {
+                          return;
+                        }
+                        const val = parseFloat(inputVal);
+                        if (!isNaN(val) && val >= 0 && val <= 24) {
+                          setValues(new Map(values).set(quest.category, val));
+                        }
+                      }}
+                      className="flex-1 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
+                      placeholder="8"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                    />
+                    <button
+                      onClick={() => {
+                        const newValue = Math.min(24, (currentValue || 8) + 0.5);
+                        setValues(new Map(values).set(quest.category, newValue));
+                      }}
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                   {currentValue > 0 && (
                     <div className={`text-[10px] sm:text-xs text-center font-medium ${getStatusColor(quest, currentValue)}`}>
-                      {(() => {
-                        const val = currentValue;
-                        if (val >= 7.9 && val <= 8.1) return "✓ Optimal Sleep (+30 pts)";
-                        if (val >= 8.9 && val <= 9.1) return "✓✓ Better Sleep (+35 pts)";
-                        if (val >= 6.9 && val <= 7.1) return "✓ Slight Gain (+10 pts)";
-                        if (val >= 9.9 && val <= 10.1) return "Tapering (+15 pts)";
-                        if (val >= 10.9 && val <= 11.1) return "Tapering (+10 pts)";
-                        if (val >= 12) return "Tapering (+5 pts)";
-                        if (val >= 6 && val < 7) return "⚠ Small Penalty (-5 pts)";
-                        if (val >= 5 && val < 6) return "⚠ Medium Penalty (-15 pts)";
-                        if (val >= 4 && val < 5) return "⚠ Large Penalty (-25 pts)";
-                        if (val < 4) return "⚠ Severe Penalty (-40 pts)";
-                        return "";
-                      })()}
+                      {currentValue === 8
+                        ? "✓ Optimal Sleep (+30 pts)"
+                        : currentValue === 9
+                        ? "✓✓ Better Sleep (+35 pts)"
+                        : currentValue === 7
+                        ? "✓ Slight Gain (+10 pts)"
+                        : currentValue === 10
+                        ? "Tapering (+15 pts)"
+                        : currentValue === 11
+                        ? "Tapering (+10 pts)"
+                        : currentValue >= 12
+                        ? "Tapering (+5 pts)"
+                        : currentValue >= 6 && currentValue < 7
+                        ? "⚠ Small Penalty (-5 pts)"
+                        : currentValue >= 5 && currentValue < 6
+                        ? "⚠ Medium Penalty (-15 pts)"
+                        : currentValue >= 4 && currentValue < 5
+                        ? "⚠ Large Penalty (-25 pts)"
+                        : currentValue < 4
+                        ? "⚠ Severe Penalty (-40 pts)"
+                        : ""}
                     </div>
                   )}
                   <motion.button
-                    onClick={() => {
-                      const decimal = hoursMinutesToDecimal(sleepHours, sleepMinutes);
-                      handleSubmit(quest, decimal);
-                    }}
+                    onClick={() => handleSubmit(quest, currentValue || 8)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    disabled={sleepHours === 0 && sleepMinutes === 0}
+                    disabled={currentValue <= 0}
                     className={`w-full py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                      sleepHours > 0 || sleepMinutes > 0
+                      currentValue > 0
                         ? "bg-white/20 hover:bg-white/30 text-white"
                         : "bg-white/5 text-white/40 cursor-not-allowed"
                     }`}

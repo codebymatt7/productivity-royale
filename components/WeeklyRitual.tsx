@@ -557,9 +557,15 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                     type="number"
                     min="0"
                     max="24"
-                    value={screenTimeHours}
+                    value={screenTimeHours || ""}
                     onChange={(e) => {
-                      const hours = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                      const val = e.target.value;
+                      if (val === "") {
+                        setScreenTimeHours(0);
+                        setScreenTime("0");
+                        return;
+                      }
+                      const hours = Math.max(0, Math.min(24, parseInt(val) || 0));
                       setScreenTimeHours(hours);
                       const decimal = hoursMinutesToDecimal(hours, screenTimeMinutes);
                       setScreenTime(decimal.toString());
@@ -576,9 +582,16 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                     type="number"
                     min="0"
                     max="59"
-                    value={screenTimeMinutes}
+                    value={screenTimeMinutes || ""}
                     onChange={(e) => {
-                      const minutes = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                      const val = e.target.value;
+                      if (val === "") {
+                        setScreenTimeMinutes(0);
+                        const decimal = hoursMinutesToDecimal(screenTimeHours, 0);
+                        setScreenTime(decimal.toString());
+                        return;
+                      }
+                      const minutes = Math.max(0, Math.min(59, parseInt(val) || 0));
                       setScreenTimeMinutes(minutes);
                       const decimal = hoursMinutesToDecimal(screenTimeHours, minutes);
                       setScreenTime(decimal.toString());
