@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Dumbbell, BookOpen, Users, Brain, Apple, Moon } from "lucide-react";
-import { motion } from "framer-motion";
+import { Dumbbell, BookOpen, Users, Brain, Apple, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface HistoryProps {
   userId: string;
@@ -29,12 +29,13 @@ const habitIcons: HabitIcon[] = [
   { category: "social", icon: <Users className="w-4 h-4" />, color: "text-green-400" },
   { category: "meditation", icon: <Brain className="w-4 h-4" />, color: "text-purple-400" },
   { category: "diet", icon: <Apple className="w-4 h-4" />, color: "text-orange-400" },
-  { category: "sleep", icon: <Moon className="w-4 h-4" />, color: "text-purple-400" },
+  { category: "sleep", icon: <Moon className="w-4 h-4" />, color: "text-indigo-400" },
 ];
 
 export default function History({ userId }: HistoryProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function loadHistory() {
@@ -105,6 +106,16 @@ export default function History({ userId }: HistoryProps) {
     return habitIcons.find((h) => h.category === category);
   };
 
+  const toggleExpand = (date: string) => {
+    const newExpanded = new Set(expandedDates);
+    if (newExpanded.has(date)) {
+      newExpanded.delete(date);
+    } else {
+      newExpanded.add(date);
+    }
+    setExpandedDates(newExpanded);
+  };
+
   if (loading) {
     return (
       <div className="p-4 sm:p-6">
@@ -122,85 +133,131 @@ export default function History({ userId }: HistoryProps) {
           <div className="text-gray-400 text-sm">No history yet. Start completing habits and journaling!</div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {entries.map((entry, index) => (
-            <motion.div
-              key={entry.date}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="text-base sm:text-lg font-semibold text-white mb-1">
-                    {formatDate(entry.date)}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Stats Gained Icons */}
-                  {entry.habits.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      {entry.habits.map((habit, idx) => {
-                        const habitIcon = getHabitIcon(habit);
-                        if (!habitIcon) return null;
-                        return (
-                          <div
-                            key={idx}
-                            className={`${habitIcon.color} bg-dark-bg rounded-lg p-1.5 border border-dark-border`}
-                            style={{ 
-                              boxShadow: `0 0 8px ${
-                                habitIcon.color === 'text-red-400' ? 'rgba(239,68,68,0.3)' : 
-                                habitIcon.color === 'text-blue-400' ? 'rgba(59,130,246,0.3)' : 
-                                habitIcon.color === 'text-green-400' ? 'rgba(16,185,129,0.3)' : 
-                                habitIcon.color === 'text-orange-400' ? 'rgba(249,115,22,0.3)' : 
-                                'rgba(168,85,247,0.3)'
-                              }` 
-                            }}
-                          >
-                            {habitIcon.icon}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {/* Daily Score Badge */}
-                  {entry.dailyScore > 0 && (
-                    <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full">
-                      <span className="text-xs sm:text-sm font-semibold text-blue-400">
-                        {entry.dailyScore} pts
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+        <div className="space-y-2 sm:space-y-3">
+          {entries.map((entry, index) => {
+            const isExpanded = expandedDates.has(entry.date);
+            const hasContent = entry.morning_intention || entry.evening_reflection || entry.habits.length > 0;
 
-              {/* Content */}
-              {(entry.morning_intention || entry.evening_reflection) ? (
-                <div className="space-y-3">
-                  {entry.morning_intention && (
-                    <div>
-                      <div className="text-xs text-gray-400 mb-1.5">Daily Affirmation</div>
-                      <div className="text-sm text-gray-300 bg-[#1a1f2e] rounded-xl p-3 font-mono border border-dark-border">
-                        {entry.morning_intention}
+            return (
+              <motion.div
+                key={entry.date}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="bg-dark-card border border-dark-border rounded-xl sm:rounded-2xl overflow-hidden"
+              >
+                {/* Header - Always visible */}
+                <button
+                  onClick={() => toggleExpand(entry.date)}
+                  className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-dark-bg/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className="text-base sm:text-lg font-semibold text-white">
+                      {formatDate(entry.date)}
+                    </div>
+                    {entry.dailyScore > 0 && (
+                      <div className="px-2 sm:px-3 py-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full">
+                        <span className="text-xs sm:text-sm font-semibold text-blue-400">
+                          {entry.dailyScore} pts
+                        </span>
                       </div>
+                    )}
+                    {entry.habits.length > 0 && (
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        {entry.habits.slice(0, 3).map((habit, idx) => {
+                          const habitIcon = getHabitIcon(habit);
+                          if (!habitIcon) return null;
+                          return (
+                            <div
+                              key={idx}
+                              className={`${habitIcon.color} bg-dark-bg rounded-lg p-1 sm:p-1.5 border border-dark-border`}
+                            >
+                              {habitIcon.icon}
+                            </div>
+                          );
+                        })}
+                        {entry.habits.length > 3 && (
+                          <span className="text-xs text-gray-400">+{entry.habits.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {hasContent && (
+                    <div className="ml-3 sm:ml-4 flex-shrink-0">
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                      )}
                     </div>
                   )}
-                  {entry.evening_reflection && (
-                    <div>
-                      <div className="text-xs text-gray-400 mb-1.5">Evening Reflection</div>
-                      <div className="text-sm text-gray-300 bg-[#1a1f2e] rounded-xl p-3 font-mono border border-dark-border">
-                        {entry.evening_reflection}
+                </button>
+
+                {/* Expandable Content */}
+                <AnimatePresence>
+                  {isExpanded && hasContent && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3 sm:space-y-4 border-t border-dark-border pt-4">
+                        {/* Journal Entries */}
+                        {entry.morning_intention && (
+                          <div>
+                            <div className="text-xs sm:text-sm text-gray-400 mb-1.5">Daily Affirmation</div>
+                            <div className="text-sm sm:text-base text-gray-300 bg-[#1a1f2e] rounded-xl p-3 font-mono border border-dark-border">
+                              {entry.morning_intention}
+                            </div>
+                          </div>
+                        )}
+                        {entry.evening_reflection && (
+                          <div>
+                            <div className="text-xs sm:text-sm text-gray-400 mb-1.5">Evening Reflection</div>
+                            <div className="text-sm sm:text-base text-gray-300 bg-[#1a1f2e] rounded-xl p-3 font-mono border border-dark-border">
+                              {entry.evening_reflection}
+                            </div>
+                          </div>
+                        )}
+                        {/* All Habits */}
+                        {entry.habits.length > 0 && (
+                          <div>
+                            <div className="text-xs sm:text-sm text-gray-400 mb-2">Habits Completed</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {entry.habits.map((habit, idx) => {
+                                const habitIcon = getHabitIcon(habit);
+                                if (!habitIcon) return null;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`${habitIcon.color} bg-dark-bg rounded-lg p-2 border border-dark-border`}
+                                    style={{ 
+                                      boxShadow: `0 0 8px ${
+                                        habitIcon.color === 'text-red-400' ? 'rgba(239,68,68,0.3)' : 
+                                        habitIcon.color === 'text-blue-400' ? 'rgba(59,130,246,0.3)' : 
+                                        habitIcon.color === 'text-green-400' ? 'rgba(16,185,129,0.3)' : 
+                                        habitIcon.color === 'text-orange-400' ? 'rgba(249,115,22,0.3)' : 
+                                        habitIcon.color === 'text-indigo-400' ? 'rgba(99,102,241,0.3)' :
+                                        'rgba(168,85,247,0.3)'
+                                      }` 
+                                    }}
+                                  >
+                                    {habitIcon.icon}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    </motion.div>
                   )}
-                </div>
-              ) : entry.habits.length === 0 ? (
-                <div className="text-sm text-gray-500 italic">No activity recorded for this day</div>
-              ) : null}
-            </motion.div>
-          ))}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

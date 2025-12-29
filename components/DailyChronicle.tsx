@@ -301,11 +301,10 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
                   Edit
                 </button>
               </div>
-            ) : (
+            ) : !isEditingReflection ? (
               <motion.button
                 onClick={async () => {
                   await handleSaveReflection();
-                  setIsEditingReflection(false);
                 }}
                 disabled={isSaving || saved || !eveningReflection.trim()}
                 whileHover={{ scale: 1.02 }}
@@ -323,8 +322,7 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
                   </>
                 )}
               </motion.button>
-            )}
-            {isEditingReflection && (
+            ) : (
               <div className="mt-3 flex gap-2">
                 <motion.button
                   onClick={async () => {

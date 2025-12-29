@@ -34,6 +34,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [timeUntilSunday, setTimeUntilSunday] = useState("");
   const [hasSubmittedThisWeek, setHasSubmittedThisWeek] = useState(false);
   const [countdownTime, setCountdownTime] = useState("");
+  const [originalScreenTime, setOriginalScreenTime] = useState("");
+  const [originalSpending, setOriginalSpending] = useState("");
 
   useEffect(() => {
     // Initialize with active week
@@ -130,8 +132,12 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     if (logs && logs.length > 0) {
       try {
         const weeklyData = JSON.parse(logs[0].activity_name);
-        setScreenTime(weeklyData.screen_time?.toString() || "");
-        setSpending(weeklyData.spending?.toString() || "");
+        const screenTimeStr = weeklyData.screen_time?.toString() || "";
+        const spendingStr = weeklyData.spending?.toString() || "";
+        setScreenTime(screenTimeStr);
+        setSpending(spendingStr);
+        setOriginalScreenTime(screenTimeStr);
+        setOriginalSpending(spendingStr);
         setHasSubmittedThisWeek(true);
         
         if (weeklyData.screen_time) {
@@ -147,6 +153,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       // Reset to defaults if no data
       setScreenTime("");
       setSpending("");
+      setOriginalScreenTime("");
+      setOriginalSpending("");
       setLifeChartData([]);
       setWealthChartData([]);
       setHasSubmittedThisWeek(false);
@@ -172,8 +180,18 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       newWeek = new Date(selectedWeek);
       if (direction === "prev") {
         newWeek.setDate(selectedWeek.getDate() - 7);
+      } else if (direction === "next") {
+        // Allow going forward but stop at current week
+        newWeek.setDate(selectedWeek.getDate() + 7);
+        const newWeekSunday = getWeekSunday(newWeek);
+        
+        // Prevent navigating to future weeks
+        if (newWeekSunday.getTime() > currentWeekSunday.getTime()) {
+          return;
+        }
+        
+        newWeek = newWeekSunday;
       } else {
-        // Don't allow going to future weeks
         return;
       }
       
@@ -241,9 +259,12 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       return;
     }
 
-    // Prevent duplicate submission for current week
-    if (hasSubmittedThisWeek && isOnCurrentWeek) {
-      alert("You have already submitted your weekly ritual for this week. Come back next Sunday!");
+    // Check if values have changed (allow resubmission if changed)
+    const valuesChanged = screenTime !== originalScreenTime || spending !== originalSpending;
+    
+    // Only prevent duplicate submission for current week if values haven't changed
+    if (hasSubmittedThisWeek && isOnCurrentWeek && !valuesChanged) {
+      alert("You have already submitted your weekly ritual for this week. Change the values to resubmit.");
       return;
     }
 
@@ -322,36 +343,18 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       week_start: weekSunday,
     });
     
-    // Check if already submitted for this week FIRST (before deleting)
-    const { data: existingCheck } = await supabase
+    // Always delete existing weekly log for this week if it exists (allow editing/resubmission)
+    const { data: existingLogs } = await supabase
       .from("logs")
       .select("id")
       .eq("user_id", userId)
       .eq("category", "weekly")
-      .eq("log_date", weekSunday)
-      .maybeSingle();
+      .gte("log_date", weekSunday)
+      .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0]);
 
-    if (existingCheck && isOnCurrentWeek) {
-      alert("You have already submitted your weekly ritual for this week.");
-      setHasSubmittedThisWeek(true);
-      loadWeekData();
-      return;
-    }
-
-    // Delete existing weekly log for this week if it exists (for past weeks, allow editing)
-    if (!isOnCurrentWeek || !existingCheck) {
-      const { data: existingLogs } = await supabase
-        .from("logs")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("category", "weekly")
-        .gte("log_date", weekSunday)
-        .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0]);
-
-      if (existingLogs && existingLogs.length > 0) {
-        for (const log of existingLogs) {
-          await supabase.from("logs").delete().eq("id", log.id);
-        }
+    if (existingLogs && existingLogs.length > 0) {
+      for (const log of existingLogs) {
+        await supabase.from("logs").delete().eq("id", log.id);
       }
     }
 
@@ -371,6 +374,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     setIsSubmitted(true);
     setHasSubmittedThisWeek(true);
+    setOriginalScreenTime(screenTime);
+    setOriginalSpending(spending);
     
     // Reload data to show the submitted state
     loadWeekData();
@@ -442,11 +447,15 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         
         <button
           onClick={() => navigateWeek("next")}
-          disabled={true}
-          className="p-2 hover:bg-dark-card rounded-lg transition-colors opacity-30 cursor-not-allowed"
-          title="Cannot navigate to future weeks"
+          disabled={!canGoNext}
+          className={`p-2 rounded-lg transition-colors ${
+            canGoNext
+              ? "hover:bg-dark-card text-gray-400"
+              : "opacity-30 cursor-not-allowed text-gray-400"
+          }`}
+          title={canGoNext ? "Next week" : "Cannot navigate to future weeks"}
         >
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+          <ChevronRight className="w-5 h-5" />
         </button>
       </div>
       

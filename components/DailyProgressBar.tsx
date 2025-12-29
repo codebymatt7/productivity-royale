@@ -10,7 +10,7 @@ interface DailyProgressBarProps {
   userId: string;
 }
 
-const DAILY_GOAL = 200; // Stretch goal that allows for above-and-beyond days (networking events, heavy reading, etc.)
+const DAILY_GOAL = 100; // Daily goal - achievable but can be surpassed for above-and-beyond days
 
 export default function DailyProgressBar({ userId }: DailyProgressBarProps) {
   const [todayPoints, setTodayPoints] = useState(0);
@@ -29,7 +29,8 @@ export default function DailyProgressBar({ userId }: DailyProgressBarProps) {
         .neq("category", "weekly");
 
       if (data) {
-        const total = data.reduce((sum, log) => sum + log.points, 0);
+        // Only count positive points for progress bar (penalties don't reduce progress)
+        const total = data.reduce((sum, log) => sum + Math.max(0, log.points), 0);
         setTodayPoints(total);
         setIsComplete(total >= DAILY_GOAL);
       }
@@ -40,7 +41,7 @@ export default function DailyProgressBar({ userId }: DailyProgressBarProps) {
     return () => clearInterval(interval);
   }, [userId, today]);
 
-  // Calculate percentage, but allow it to go over 100% for above-and-beyond days
+  // Calculate percentage, cap at 100% for visual bar, but allow surpassing the goal
   const percentage = Math.min((todayPoints / DAILY_GOAL) * 100, 100);
 
   return (

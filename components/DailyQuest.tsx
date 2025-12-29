@@ -35,7 +35,7 @@ const quests: Quest[] = [
   { name: "Connections", icon: <Users />, category: "social", points: 0, stat: "CHA", color: "green", goal: "People met", type: "number" },
   
   // WIL: Discipline and self-control
-  { name: "Sleep", icon: <Moon />, category: "sleep", points: 0, stat: "WIL", color: "purple", goal: "Hours slept", type: "sleep" },
+  { name: "Sleep", icon: <Moon />, category: "sleep", points: 0, stat: "WIL", color: "indigo", goal: "Hours slept", type: "sleep" },
   { name: "Meditate", icon: <Brain />, category: "meditation", points: 10, stat: "WIL", color: "purple", goal: "Meditation", type: "binary" },
   { name: "Diet", icon: <Apple />, category: "diet", points: 20, stat: "WIL", color: "orange", goal: "All natural foods today", type: "binary" },
 ];
@@ -167,23 +167,47 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     const points = calculatePoints(quest, inputValue);
     const isCompleted = todayCompleted.has(quest.category);
 
-    if (isCompleted && quest.type === "binary") {
-      // Toggle off for binary
-      const newTodayCompleted = new Set(todayCompleted);
-      newTodayCompleted.delete(quest.category);
-      setTodayCompleted(newTodayCompleted);
-      
+    // Allow uncompleting for all types (binary, number, sleep)
+    if (isCompleted) {
+      // Toggle off - delete the log and subtract points
       const supabase = createClient();
-      const { data: logs } = await supabase
+      const { data: logs, error: fetchError } = await supabase
         .from("logs")
-        .select("id")
+        .select("id, points")
         .eq("user_id", userId)
         .eq("category", quest.category)
         .eq("log_date", today)
         .limit(1);
       
+      if (fetchError) {
+        console.error("Error fetching log to delete:", fetchError);
+        alert("Failed to uncomplete habit. Please try again.");
+        return;
+      }
+      
       if (logs && logs[0]) {
-        await supabase.from("logs").delete().eq("id", logs[0].id);
+        const { error: deleteError } = await supabase
+          .from("logs")
+          .delete()
+          .eq("id", logs[0].id);
+        
+        if (deleteError) {
+          console.error("Error deleting log:", deleteError);
+          alert("Failed to uncomplete habit. Please try again.");
+          return;
+        }
+        
+        // Update local state
+        const newTodayCompleted = new Set(todayCompleted);
+        newTodayCompleted.delete(quest.category);
+        setTodayCompleted(newTodayCompleted);
+        
+        // Clear the value for number/sleep inputs
+        if (quest.type !== "binary") {
+          const newValues = new Map(values);
+          newValues.set(quest.category, 0);
+          setValues(newValues);
+        }
       }
       return;
     }
@@ -291,6 +315,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         case "cyan": return "bg-gradient-to-br from-cyan-500 to-cyan-600";
         case "green": return "bg-gradient-to-br from-green-500 to-green-600";
         case "purple": return "bg-gradient-to-br from-purple-500 to-purple-600";
+        case "indigo": return "bg-gradient-to-br from-indigo-500 to-indigo-600";
         case "orange": return "bg-gradient-to-br from-orange-500 to-orange-600";
         default: return "bg-gradient-to-br from-blue-500 to-blue-600";
       }
@@ -329,9 +354,72 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       {/* Daily Progress Bar */}
       <DailyProgressBar userId={userId} />
       
-      {/* 2-Column Grid - Always 2 columns for compact mobile layout */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        {quests.map((quest) => {
+      {/* Row 1: Binary habits (Workout, Meditate, Diet) - 3 columns */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+        {quests.filter(q => q.type === "binary").map((quest) => {
+          const isCompleted = todayCompleted.has(quest.category);
+          const isAnimating = animating === quest.category;
+          const isConfetti = confettiTrigger === quest.category;
+
+          return (
+            <motion.div
+              key={quest.category}
+              whileHover={!isCompleted ? { scale: 1.02, y: -2 } : {}}
+              className={`rounded-xl p-2 sm:p-2.5 flex flex-col transition-all relative overflow-hidden min-h-[100px] ${
+                getColorClasses(quest.color, isCompleted)
+              }`}
+            >
+              {isConfetti && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ConfettiParticles trigger={true} color={quest.color} />
+                </div>
+              )}
+
+              {/* Icon and Title */}
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-sm sm:text-base`}>
+                  {quest.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-[10px] sm:text-xs font-semibold ${isCompleted ? "text-white" : "text-white"} truncate`}>
+                    {quest.name}
+                  </div>
+                </div>
+              </div>
+
+              {/* Binary Button */}
+              <motion.button
+                onClick={() => handleSubmit(quest)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                animate={
+                  isAnimating && !isCompleted
+                    ? { scale: [0.9, 1.1, 1] }
+                    : {}
+                }
+                className={`mt-auto py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+                  isCompleted
+                    ? "bg-white/20 text-white"
+                    : "bg-white/10 hover:bg-white/20 text-white"
+                }`}
+              >
+                {isCompleted ? (
+                  <div className="flex items-center justify-center gap-1">
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>Done</span>
+                  </div>
+                ) : (
+                  "Complete"
+                )}
+              </motion.button>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Row 2: Number inputs (Read, Connections) - 2 columns */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3">
+        {quests.filter(q => q.type === "number").map((quest) => {
           const isCompleted = todayCompleted.has(quest.category);
           const currentValue = values.get(quest.category) || 0;
           const isAnimating = animating === quest.category;
@@ -367,33 +455,18 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 </div>
               </div>
 
-              {/* Input Section */}
-              {quest.type === "binary" ? (
+              {/* Number Input Section */}
+              {isCompleted ? (
                 <motion.button
-                  onClick={() => handleSubmit(quest)}
+                  onClick={() => handleSubmit(quest, currentValue)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  animate={
-                    isAnimating && !isCompleted
-                      ? { scale: [0.9, 1.1, 1] }
-                      : {}
-                  }
-                  className={`mt-auto py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                    isCompleted
-                      ? "bg-white/20 text-white"
-                      : "bg-white/10 hover:bg-white/20 text-white"
-                  }`}
+                  className="mt-auto py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white"
                 >
-                  {isCompleted ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Check className="w-5 h-5" />
-                      <span>Completed</span>
-                    </div>
-                  ) : (
-                    "Complete"
-                  )}
+                  <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span>Completed</span>
                 </motion.button>
-              ) : quest.type === "number" ? (
+              ) : (
                 <div className="mt-auto space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <button
@@ -424,16 +497,6 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
-                  {currentValue > 0 && (
-                    <div className="text-xs text-white/80 text-center">
-                      Total {quest.category === "reading" ? "Pages" : "People"}: {currentValue}
-                      <div className="text-blue-400 mt-1">
-                        {quest.category === "reading"
-                          ? `+${Math.floor(currentValue * 0.5)} pts (0.5/pt, no cap)`
-                          : `+${currentValue * 6} pts (6/pt, no cap)`}
-                      </div>
-                    </div>
-                  )}
                   <motion.button
                     onClick={() => handleSubmit(quest, currentValue)}
                     whileHover={{ scale: 1.02 }}
@@ -449,16 +512,53 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     <span>Save</span>
                   </motion.button>
                 </div>
-              ) : quest.type === "sleep" ? (
-                <div className="mt-auto space-y-2">
-                  <div className="text-center">
-                    {currentValue > 0 ? (
-                      <div className="text-lg font-bold text-white">{currentValue}h</div>
-                    ) : (
-                      <div className="text-sm text-white/40">Hours</div>
-                    )}
+              )}
+            </motion.div>
+            );
+          })}
+      </div>
+
+      {/* Row 3: Sleep - Full width */}
+      <div className="grid grid-cols-1 gap-3 sm:gap-4">
+        {quests.filter(q => q.type === "sleep").map((quest) => {
+          const isCompleted = todayCompleted.has(quest.category);
+          const currentValue = values.get(quest.category) || 0;
+          const isAnimating = animating === quest.category;
+          const isConfetti = confettiTrigger === quest.category;
+          const points = calculatePoints(quest, currentValue);
+
+          return (
+            <motion.div
+              key={quest.category}
+              whileHover={!isCompleted ? { scale: 1.02, y: -2 } : {}}
+              className={`rounded-xl p-2.5 sm:p-3 flex flex-col transition-all relative overflow-hidden min-h-[120px] ${
+                getColorClasses(quest.color, isCompleted)
+              }`}
+            >
+              {isConfetti && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <ConfettiParticles trigger={true} color={quest.color} />
+                </div>
+              )}
+
+              {/* Icon and Title */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-base sm:text-lg`}>
+                  {quest.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs sm:text-sm font-semibold ${isCompleted ? "text-white" : "text-white"} truncate`}>
+                    {quest.name}
                   </div>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className={`text-[10px] sm:text-xs ${isCompleted ? "text-white/80" : "text-gray-400"} line-clamp-1`}>
+                    {quest.goal}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sleep Input */}
+              <div className="mt-auto space-y-2">
+                <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => {
                         const newValue = Math.max(0, (currentValue || 0) - 0.5);
@@ -531,25 +631,24 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     <span>Save</span>
                   </motion.button>
                 </div>
-              ) : null}
 
-              <AnimatePresence>
-                {isAnimating && !isCompleted && (
-                  <motion.div
-                    initial={{ opacity: 1, y: 0, scale: 1 }}
-                    animate={{ opacity: 0, y: -20, scale: 1.2 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"
-                  >
-                    <div className="text-white font-bold text-lg">
-                      +{points}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
+                <AnimatePresence>
+                  {isAnimating && !isCompleted && (
+                    <motion.div
+                      initial={{ opacity: 1, y: 0, scale: 1 }}
+                      animate={{ opacity: 0, y: -20, scale: 1.2 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"
+                    >
+                      <div className="text-white font-bold text-lg">
+                        +{points}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
       </div>
     </div>
   );
