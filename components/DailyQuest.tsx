@@ -47,6 +47,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
   const [confettiTrigger, setConfettiTrigger] = useState<string | null>(null);
   const [today, setToday] = useState(getTodayDateString());
   const [dailyAffirmation, setDailyAffirmation] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState(false); // Flag to prevent useEffect from overwriting during delete
 
   useEffect(() => {
     const checkDate = () => {
@@ -97,29 +98,31 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         setDailyAffirmation("");
       }
       
-      // Load habit logs
-      const { data } = await supabase
-        .from("logs")
-        .select("category, value, points")
-        .eq("user_id", userId)
-        .eq("log_date", today);
+      // Load habit logs (skip if we're in the middle of deleting to prevent overwriting state)
+      if (!isDeleting) {
+        const { data } = await supabase
+          .from("logs")
+          .select("category, value, points")
+          .eq("user_id", userId)
+          .eq("log_date", today);
 
-      if (data) {
-        const todaySet = new Set(data.map((log) => log.category));
-        setTodayCompleted(todaySet);
-        
-        const valuesMap = new Map<string, number>();
-        data.forEach((log) => {
-          // Convert to number, default to 8 for sleep, 0 for others
-          const numValue = Number(log.value);
-          if (log.category === "sleep") {
-            // Sleep defaults to 8 if no value or 0
-            valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
-          } else {
-            valuesMap.set(log.category, numValue || 0);
-          }
-        });
-        setValues(valuesMap);
+        if (data) {
+          const todaySet = new Set(data.map((log) => log.category));
+          setTodayCompleted(todaySet);
+          
+          const valuesMap = new Map<string, number>();
+          data.forEach((log) => {
+            // Convert to number, default to 8 for sleep, 0 for others
+            const numValue = Number(log.value);
+            if (log.category === "sleep") {
+              // Sleep defaults to 8 if no value or 0
+              valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
+            } else {
+              valuesMap.set(log.category, numValue || 0);
+            }
+          });
+          setValues(valuesMap);
+        }
       }
     }
 
@@ -186,6 +189,9 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     // Allow uncompleting for all types (binary, number, sleep)
     if (isCompleted) {
       console.log("Uncompleting habit:", quest.category, "for date:", today);
+      
+      // Set flag to prevent useEffect from overwriting our state
+      setIsDeleting(true);
       
       // Toggle off - delete the log and subtract points
       const supabase = createClient();
@@ -269,6 +275,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         
         if (refreshError) {
           console.error("Error refreshing logs:", refreshError);
+          setIsDeleting(false);
           return;
         }
         
@@ -297,7 +304,10 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           }
           setValues(clearedValues);
         }
-      }, 1000); // Increased delay to ensure trigger completes
+        
+        // Clear the deleting flag after reload
+        setIsDeleting(false);
+      }, 1500); // Increased delay to ensure trigger completes
       
       return;
     }
