@@ -30,20 +30,8 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         return; // Already checked today
       }
 
-      // Check if we already applied penalties today (double-check)
-      const { data: penaltyCheck } = await supabase
-        .from("logs")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("category", "penalty")
-        .eq("log_date", today)
-        .or("activity_name.ilike.%Missing habit%,activity_name.ilike.%Forgot to check in%")
-        .limit(1);
-
-      if (penaltyCheck && penaltyCheck.length > 0) {
-        localStorage.setItem(checkKey, "true");
-        return;
-      }
+      // Check if we already showed the modal today (no penalties to check anymore)
+      // Just use localStorage check above
 
       // Check which habits were completed yesterday
       const { data: yesterdayLogs } = await supabase
@@ -76,47 +64,14 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         }
       });
 
-      // If user didn't open the app at all (no logs), apply -50 penalty for forgetting
-      if (!hasAnyLogs && missing.length > 0) {
-        // Apply -50 penalty for not opening the app at all
-        const { error } = await supabase.from("logs").insert({
-          user_id: userId,
-          activity_name: `Forgot to check in - Missing: ${missing.join(", ")}`,
-          points: -50, // -50 for not opening the app at all
-          category: "penalty",
-          log_date: today,
-        });
-
-        if (!error) {
-          setMissingHabits(missing);
-          setTotalPenalty(-50);
-          setShowModal(true);
-          onPenaltyApplied();
-          localStorage.setItem(checkKey, "true");
-        } else {
-          localStorage.setItem(checkKey, "true");
-        }
-      } 
-      // If user opened the app but missed some habits, apply -5 for each missing habit
-      else if (hasAnyLogs && missing.length > 0) {
-        // Apply -5 penalty for each missing habit
-        const { error } = await supabase.from("logs").insert({
-          user_id: userId,
-          activity_name: `Missing habits: ${missing.join(", ")}`,
-          points: totalPenaltyAmount, // -5 for each missing habit
-          category: "penalty",
-          log_date: today,
-        });
-
-        if (!error) {
-          setMissingHabits(missing);
-          setTotalPenalty(totalPenaltyAmount);
-          setShowModal(true);
-          onPenaltyApplied();
-          localStorage.setItem(checkKey, "true");
-        } else {
-          localStorage.setItem(checkKey, "true");
-        }
+      // Show motivational message if habits were missed (no penalties)
+      if (missing.length > 0) {
+        // No penalties - just show motivational message
+        setMissingHabits(missing);
+        setTotalPenalty(0); // No penalty points
+        setShowModal(true);
+        // Don't call onPenaltyApplied() since we're not applying penalties
+        localStorage.setItem(checkKey, "true");
       } else {
         // No missing habits, mark as checked
         localStorage.setItem(checkKey, "true");
@@ -143,7 +98,7 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-dark-card border-2 border-red-500/50 rounded-2xl p-6 sm:p-8 max-w-md mx-4 relative"
+            className="bg-dark-card border-2 border-yellow-500/50 rounded-2xl p-6 sm:p-8 max-w-md mx-4 relative"
           >
             <button
               onClick={() => setShowModal(false)}
@@ -152,28 +107,28 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
               <X className="w-5 h-5" />
             </button>
             <div className="text-center">
-              <div className="text-4xl mb-4">⚠️</div>
-              <h3 className="text-xl sm:text-2xl font-semibold text-red-400 mb-4">
-                Missing Habits Penalty
+              <div className="text-4xl mb-4">💪</div>
+              <h3 className="text-xl sm:text-2xl font-semibold text-yellow-400 mb-4">
+                Yesterday's Missed Opportunities
               </h3>
               <p className="text-gray-300 mb-4 text-sm sm:text-base">
                 You missed these habits yesterday:
               </p>
               <div className="mb-4 space-y-2">
                 {missingHabits.map((habit, idx) => (
-                  <div key={idx} className="text-red-300 font-medium">
+                  <div key={idx} className="text-yellow-300 font-medium">
                     • {habit}
                   </div>
                 ))}
               </div>
-              <div className="text-2xl sm:text-3xl font-bold text-red-500 mb-6">
-                {totalPenalty} pts
-              </div>
+              <p className="text-gray-400 mb-6 text-sm italic">
+                While you rested, others outworked you. Time to get back in the game! 🔥
+              </p>
               <button
                 onClick={() => setShowModal(false)}
-                className="px-6 py-2 bg-red-500/20 border border-red-500/50 text-red-400 font-semibold rounded-xl hover:bg-red-500/30 transition-colors"
+                className="px-6 py-2 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 font-semibold rounded-xl hover:bg-yellow-500/30 transition-colors"
               >
-                Acknowledge
+                Let's Go
               </button>
             </div>
           </motion.div>
