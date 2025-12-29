@@ -56,43 +56,52 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         yesterdayLogs?.map((log) => log.category) || []
       );
 
-      const requiredHabits = [
-        { category: "workout", name: "Workout", penalty: -15 },
-        { category: "meditation", name: "Meditate", penalty: -10 },
-        { category: "diet", name: "Diet", penalty: -15 },
-      ];
+      // Check if user opened the app at all yesterday (any log exists)
+      const hasAnyLogs = yesterdayLogs && yesterdayLogs.length > 0;
+      
+      // Only apply penalty if they didn't open the app at all (no logs)
+      if (!hasAnyLogs) {
+        const requiredHabits = [
+          { category: "workout", name: "Workout" },
+          { category: "meditation", name: "Meditate" },
+          { category: "diet", name: "Diet" },
+        ];
 
-      const missing: string[] = [];
-      let penalty = 0;
-
-      requiredHabits.forEach((habit) => {
-        if (!completedCategories.has(habit.category)) {
-          missing.push(habit.name);
-          penalty += habit.penalty;
-        }
-      });
-
-      if (missing.length > 0) {
-        // Apply penalties
-        for (const habit of requiredHabits) {
+        const missing: string[] = [];
+        
+        // Check which required habits were missing
+        requiredHabits.forEach((habit) => {
           if (!completedCategories.has(habit.category)) {
-            await supabase.from("logs").insert({
-              user_id: userId,
-              activity_name: `Missing habit: ${habit.name}`,
-              points: habit.penalty,
-              category: "penalty",
-              log_date: today,
-            });
+            missing.push(habit.name);
           }
-        }
+        });
 
-        setMissingHabits(missing);
-        setTotalPenalty(penalty);
-        setShowModal(true);
-        onPenaltyApplied();
-        localStorage.setItem(checkKey, "true");
+        // Only apply penalty if at least one required habit was missing
+        // Apply a small single penalty (5 points total) regardless of how many were missing
+        if (missing.length > 0) {
+          // Apply a single small penalty (5 points) for not filling out required habits
+          const { error } = await supabase.from("logs").insert({
+            user_id: userId,
+            activity_name: `Missing required habits: ${missing.join(", ")}`,
+            points: -5, // Small penalty, only 5 points total
+            category: "penalty",
+            log_date: today,
+          });
+
+          if (!error) {
+            setMissingHabits(missing);
+            setTotalPenalty(-5);
+            setShowModal(true);
+            onPenaltyApplied();
+            localStorage.setItem(checkKey, "true");
+          }
+        } else {
+          // No missing habits, mark as checked
+          localStorage.setItem(checkKey, "true");
+        }
       } else {
-        // No missing habits, mark as checked
+        // User opened the app (has logs), no penalty even if they missed habits
+        // Mark as checked
         localStorage.setItem(checkKey, "true");
       }
     }

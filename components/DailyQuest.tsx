@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { getTodayDateString } from "@/lib/utils";
+import { getTodayDateString, decimalToHoursMinutes, hoursMinutesToDecimal } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dumbbell, BookOpen, Users, Brain, Moon, Check, Plus, Minus, Apple } from "lucide-react";
 import ConfettiParticles from "./ConfettiParticles";

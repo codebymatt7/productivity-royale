@@ -39,7 +39,9 @@ export default function Arena({ userId }: ArenaProps) {
       if (data) {
         setStats(data);
         // Combat Power = (STR + INT + CHA + WIL) / 10 - includes all stats
-        setCombatPower(Math.floor((data.strength + data.intelligence + data.charisma + data.willpower) / 10));
+        // Ensure combat power is never negative
+        const rawCombatPower = (data.strength + data.intelligence + data.charisma + data.willpower) / 10;
+        setCombatPower(Math.max(0, Math.floor(rawCombatPower)));
         // Level can never be negative - minimum is 1
         setLevel(Math.max(1, Math.floor((data.total_points || 0) / 100)));
       }
