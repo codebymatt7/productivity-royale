@@ -368,6 +368,17 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       .maybeSingle();
 
     let error;
+    // Ensure sleep values are properly formatted as numbers (not strings)
+    const valueToSave = quest.type === "sleep" 
+      ? parseFloat(inputValue.toString()) 
+      : Math.floor(Number(inputValue));
+    
+    // Validate the value is a valid number
+    if (isNaN(valueToSave)) {
+      alert("Invalid value. Please enter a valid number.");
+      return;
+    }
+    
     if (existingLog) {
       // Update existing log
       const { error: updateError } = await supabase
@@ -375,7 +386,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         .update({
           activity_name: quest.name,
           points: points,
-          value: quest.type === "sleep" ? parseFloat(inputValue.toString()) : Math.floor(Number(inputValue)),
+          value: valueToSave,
         })
         .eq("id", existingLog.id);
 
@@ -390,7 +401,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           points: points,
           category: quest.category,
           log_date: currentToday,
-          value: quest.type === "sleep" ? parseFloat(inputValue.toString()) : Math.floor(Number(inputValue)),
+          value: valueToSave,
         });
 
       error = insertError;
