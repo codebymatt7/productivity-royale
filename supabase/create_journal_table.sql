@@ -20,17 +20,40 @@ CREATE INDEX IF NOT EXISTS idx_journal_logs_user_date ON public.journal_logs(use
 -- RLS Policies
 ALTER TABLE public.journal_logs ENABLE ROW LEVEL SECURITY;
 
--- Drop policies if they exist, then create them
-DROP POLICY IF EXISTS "Users can read own journal logs" ON public.journal_logs;
-DROP POLICY IF EXISTS "Users can insert own journal logs" ON public.journal_logs;
-DROP POLICY IF EXISTS "Users can update own journal logs" ON public.journal_logs;
+-- Create policies only if they don't exist (safer, no destructive operations)
+DO $$
+BEGIN
+  -- Read policy
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'journal_logs' 
+    AND policyname = 'Users can read own journal logs'
+  ) THEN
+    CREATE POLICY "Users can read own journal logs" ON public.journal_logs
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
 
-CREATE POLICY "Users can read own journal logs" ON public.journal_logs
-  FOR SELECT USING (auth.uid() = user_id);
+  -- Insert policy
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'journal_logs' 
+    AND policyname = 'Users can insert own journal logs'
+  ) THEN
+    CREATE POLICY "Users can insert own journal logs" ON public.journal_logs
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
 
-CREATE POLICY "Users can insert own journal logs" ON public.journal_logs
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own journal logs" ON public.journal_logs
-  FOR UPDATE USING (auth.uid() = user_id);
+  -- Update policy
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' 
+    AND tablename = 'journal_logs' 
+    AND policyname = 'Users can update own journal logs'
+  ) THEN
+    CREATE POLICY "Users can update own journal logs" ON public.journal_logs
+      FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
