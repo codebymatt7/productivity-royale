@@ -252,13 +252,14 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       }
       
       const logToDelete = logs[0];
-      console.log("Deleting log:", logToDelete.id);
+      console.log("Deleting log:", logToDelete.id, "Category:", quest.category, "Points:", logToDelete.points);
       
       // Delete the log (trigger will handle point subtraction)
-      const { error: deleteError } = await supabase
+      const { data: deletedData, error: deleteError } = await supabase
         .from("logs")
         .delete()
-        .eq("id", logToDelete.id);
+        .eq("id", logToDelete.id)
+        .select(); // Return deleted row to verify
       
       if (deleteError) {
         console.error("Error deleting log:", deleteError);
@@ -268,7 +269,33 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         return;
       }
       
-      console.log("Log deleted successfully, updating UI state");
+      // Verify the delete actually worked
+      if (!deletedData || deletedData.length === 0) {
+        console.error("Delete returned no data - log may not have been deleted");
+        alert("Failed to uncomplete habit: Delete operation returned no data. Please try again.");
+        isDeletingRef.current = false;
+        recentlyDeletedRef.current.delete(quest.category);
+        return;
+      }
+      
+      console.log("Log deleted successfully:", deletedData);
+      
+      // Double-check by querying if the log still exists
+      const { data: verifyDelete } = await supabase
+        .from("logs")
+        .select("id")
+        .eq("id", logToDelete.id)
+        .maybeSingle();
+      
+      if (verifyDelete) {
+        console.error("WARNING: Log still exists after delete! This may be an RLS issue.");
+        alert("Delete may have failed. Please refresh the page and try again.");
+        isDeletingRef.current = false;
+        recentlyDeletedRef.current.delete(quest.category);
+        return;
+      }
+      
+      console.log("Delete verified - log no longer exists in database");
       
       // Update local state immediately (optimistic update) - DON'T reload from DB
       const newTodayCompleted = new Set(todayCompleted);
