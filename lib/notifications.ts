@@ -21,6 +21,15 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return false;
 }
 
+interface NotificationConfig {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  requireInteraction?: boolean;
+}
+
 export function scheduleNotifications() {
   if (typeof window === "undefined") return;
 
@@ -91,7 +100,7 @@ export function scheduleNotifications() {
 function checkAndScheduleNotification(
   hour: number,
   minute: number,
-  options: NotificationOptions
+  config: NotificationConfig
 ) {
   const now = new Date();
   const currentHour = now.getHours();
@@ -99,26 +108,34 @@ function checkAndScheduleNotification(
 
   // If it's the right time, show notification immediately
   if (currentHour === hour && currentMinute === minute) {
-    showNotification(options);
+    showNotification(config);
   }
 }
 
-async function showNotification(options: NotificationOptions) {
+async function showNotification(config: NotificationConfig) {
   if (!("Notification" in window)) {
     return;
   }
 
   if (Notification.permission === "granted") {
+    const options: NotificationOptions = {
+      body: config.body,
+      icon: config.icon,
+      badge: config.badge,
+      tag: config.tag,
+      requireInteraction: config.requireInteraction,
+    };
+
     if ("serviceWorker" in navigator) {
       try {
         const registration = await navigator.serviceWorker.ready;
-        await registration.showNotification(options.title || "", options);
+        await registration.showNotification(config.title, options);
       } catch (error) {
         // Fallback to regular notification if service worker fails
-        new Notification(options.title || "", options);
+        new Notification(config.title, options);
       }
     } else {
-      new Notification(options.title || "", options);
+      new Notification(config.title, options);
     }
   }
 }
