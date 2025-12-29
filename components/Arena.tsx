@@ -194,7 +194,7 @@ export default function Arena({ userId }: ArenaProps) {
         <div className="text-center mb-2">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Zap className="w-5 h-5 text-blue-400" />
-            <div className="text-xs sm:text-sm text-gray-400">Today's Battle Score</div>
+            <div className="text-xs sm:text-sm text-gray-400">Today&apos;s Battle Score</div>
           </div>
           <div className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">
             {dailyBattleScore}

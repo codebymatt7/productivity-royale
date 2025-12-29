@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
 interface StatHexagonProps {
@@ -14,12 +14,12 @@ export default function StatHexagon({ strength, intelligence, charisma, willpowe
   // Normalize data to always show a full chart but scale with actual values
   const maxValue = Math.max(strength, intelligence, charisma, willpower, 100);
   
-  const data = [
+  const data = useMemo(() => [
     { stat: "STR", value: strength, fullMark: maxValue },
     { stat: "INT", value: intelligence, fullMark: maxValue },
     { stat: "CHA", value: charisma, fullMark: maxValue },
     { stat: "WIL", value: willpower, fullMark: maxValue },
-  ];
+  ], [strength, intelligence, charisma, willpower, maxValue]);
 
   // Animated data that grows from 0
   const [animatedData, setAnimatedData] = useState(data.map(d => ({ ...d, value: 0 })));
@@ -45,7 +45,7 @@ export default function StatHexagon({ strength, intelligence, charisma, willpowe
     }, duration / steps);
 
     return () => clearInterval(timer);
-  }, [strength, intelligence, charisma, willpower, maxValue]);
+  }, [data]);
 
   return (
     <div className="w-full h-full">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { 
   calculateWealthDestroyed, 
@@ -61,12 +61,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    // Load data for selected week
-    loadWeekData();
-  }, [selectedWeek, userId]);
-
-  const loadWeekData = async () => {
+  const loadWeekData = useCallback(async () => {
     const weekSunday = getWeekSundayString(selectedWeek);
     const supabase = createClient();
     
@@ -103,7 +98,12 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       setLifeChartData([]);
       setWealthChartData([]);
     }
-  };
+  }, [selectedWeek, userId]);
+
+  useEffect(() => {
+    // Load data for selected week
+    loadWeekData();
+  }, [loadWeekData]);
 
   const navigateWeek = (direction: "prev" | "next") => {
     const newWeek = new Date(selectedWeek);
@@ -397,7 +397,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                   <p className="mb-2 font-medium">Track screen time on iPhone:</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
                     <li>Open Settings app</li>
-                    <li>Tap "Screen Time"</li>
+                    <li>Tap &quot;Screen Time&quot;</li>
                     <li>View your daily average or weekly report</li>
                     <li>Enter the hours per day here</li>
                   </ol>

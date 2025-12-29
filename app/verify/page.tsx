@@ -48,7 +48,7 @@ export default function VerifyPage() {
             <Mail className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h1 className="text-2xl font-semibold text-white mb-2">Verify Your Email</h1>
             <p className="text-gray-400 mb-4">
-              We've sent a verification email to:
+              We&apos;ve sent a verification email to:
             </p>
             <p className="text-white font-medium mb-6">{email}</p>
             <p className="text-sm text-gray-500">
