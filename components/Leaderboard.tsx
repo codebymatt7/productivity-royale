@@ -80,11 +80,6 @@ export default function Leaderboard() {
         stats.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
       }
 
-      if (statsError) {
-        console.error("Error loading leaderboard stats:", statsError);
-        console.error("Stats error details:", JSON.stringify(statsError, null, 2));
-      }
-      
       // Debug: Log what we got
       if (stats) {
         console.log("Leaderboard stats loaded:", stats.length, "users");
