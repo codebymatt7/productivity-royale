@@ -38,8 +38,8 @@ export default function Arena({ userId }: ArenaProps) {
 
       if (data) {
         setStats(data);
-        // Combat Power = (STR + INT + WIL) / 10
-        setCombatPower(Math.floor((data.strength + data.intelligence + data.willpower) / 10));
+        // Combat Power = (STR + INT + CHA + WIL) / 10 - includes all stats
+        setCombatPower(Math.floor((data.strength + data.intelligence + data.charisma + data.willpower) / 10));
         // Level can never be negative - minimum is 1
         setLevel(Math.max(1, Math.floor((data.total_points || 0) / 100)));
       }
@@ -64,9 +64,8 @@ export default function Arena({ userId }: ArenaProps) {
   }, [userId]);
 
   useEffect(() => {
-    // Countdown timer - 7 days from now
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 7);
+    // Countdown timer - Fixed date: February 1st, 2025 at midnight UTC
+    const targetDate = new Date("2025-02-01T00:00:00Z");
 
     const updateTimer = () => {
       const now = new Date();
@@ -78,6 +77,14 @@ export default function Arena({ userId }: ArenaProps) {
           hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
           minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
           seconds: Math.floor((diff % (1000 * 60)) / 1000),
+        });
+      } else {
+        // Arena is open!
+        setTimeRemaining({
+          days: 0,
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
         });
       }
     };
@@ -161,7 +168,7 @@ export default function Arena({ userId }: ArenaProps) {
             {combatPower}
           </div>
           <div className="text-xs sm:text-sm text-gray-500">
-            (Strength + Intelligence + Willpower) / 10
+            (Strength + Intelligence + Charisma + Willpower) / 10
           </div>
         </div>
 

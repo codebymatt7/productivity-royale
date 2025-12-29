@@ -23,6 +23,20 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Load active tab from localStorage on mount
+  useEffect(() => {
+    const savedTab = localStorage.getItem("activeTab") as "daily" | "weekly" | "arena" | "history" | null;
+    if (savedTab && ["daily", "weekly", "arena", "history"].includes(savedTab)) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  // Save active tab to localStorage when it changes
+  const handleTabChange = (tab: "daily" | "weekly" | "arena" | "history") => {
+    setActiveTab(tab);
+    localStorage.setItem("activeTab", tab);
+  };
+
   useEffect(() => {
     async function checkAuth() {
       const supabase = createClient();
@@ -170,7 +184,7 @@ export default function Home() {
         {/* Tabs - Larger text */}
         <div className="flex gap-0.5 px-2 sm:px-4">
           <button
-            onClick={() => setActiveTab("daily")}
+            onClick={() => handleTabChange("daily")}
             className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "daily"
                 ? "text-blue-400 border-b-2 border-blue-400"
@@ -180,7 +194,7 @@ export default function Home() {
             Daily
           </button>
           <button
-            onClick={() => setActiveTab("weekly")}
+            onClick={() => handleTabChange("weekly")}
             className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "weekly"
                 ? "text-green-400 border-b-2 border-green-400"
@@ -190,7 +204,7 @@ export default function Home() {
             Weekly
           </button>
           <button
-            onClick={() => setActiveTab("arena")}
+            onClick={() => handleTabChange("arena")}
             className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "arena"
                 ? "text-purple-400 border-b-2 border-purple-400"
@@ -200,7 +214,7 @@ export default function Home() {
             Arena
           </button>
           <button
-            onClick={() => setActiveTab("history")}
+            onClick={() => handleTabChange("history")}
             className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "history"
                 ? "text-cyan-400 border-b-2 border-cyan-400"
