@@ -148,7 +148,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     
     // Load historical data for charts
     await loadHistoricalData();
-  }, [selectedWeek, userId]);
+  }, [selectedWeek, userId, loadHistoricalData]);
 
   const loadHistoricalData = useCallback(async () => {
     const supabase = createClient();

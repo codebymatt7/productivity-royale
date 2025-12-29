@@ -186,7 +186,8 @@ export default function Leaderboard() {
     loadLeaderboard();
     const interval = setInterval(loadLeaderboard, 3000); // Update every 3 seconds for live updates
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // currentUserEntry is set inside loadLeaderboard, not a dependency
 
   const getTierRingColor = (tier: string) => {
     switch (tier) {
