@@ -23,8 +23,8 @@ interface WeeklyRitualProps {
 export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [screenTime, setScreenTime] = useState("");
   const [spending, setSpending] = useState("");
-  const [screenTimeHours, setScreenTimeHours] = useState<number>(3);
-  const [screenTimeMinutes, setScreenTimeMinutes] = useState<number>(0);
+  const [screenTimeHours, setScreenTimeHours] = useState<number | "">("");
+  const [screenTimeMinutes, setScreenTimeMinutes] = useState<number | "">("");
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [isLocked, setIsLocked] = useState(false);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
@@ -201,6 +201,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       setSpending("");
       setOriginalScreenTime("");
       setOriginalSpending("");
+      setScreenTimeHours("");
+      setScreenTimeMinutes("");
       setHasSubmittedThisWeek(false);
     }
     
@@ -557,17 +559,18 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                     type="number"
                     min="0"
                     max="24"
-                    value={screenTimeHours || ""}
+                    value={screenTimeHours === "" ? "" : screenTimeHours}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "") {
-                        setScreenTimeHours(0);
-                        setScreenTime("0");
+                        setScreenTimeHours("");
+                        setScreenTime("");
                         return;
                       }
                       const hours = Math.max(0, Math.min(24, parseInt(val) || 0));
                       setScreenTimeHours(hours);
-                      const decimal = hoursMinutesToDecimal(hours, screenTimeMinutes);
+                      const minutes = screenTimeMinutes === "" ? 0 : (typeof screenTimeMinutes === "number" ? screenTimeMinutes : 0);
+                      const decimal = hoursMinutesToDecimal(hours, minutes);
                       setScreenTime(decimal.toString());
                     }}
                     disabled={isLocked}
@@ -582,18 +585,20 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                     type="number"
                     min="0"
                     max="59"
-                    value={screenTimeMinutes || ""}
+                    value={screenTimeMinutes === "" ? "" : screenTimeMinutes}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "") {
-                        setScreenTimeMinutes(0);
-                        const decimal = hoursMinutesToDecimal(screenTimeHours, 0);
+                        setScreenTimeMinutes("");
+                        const hours = screenTimeHours === "" ? 0 : (typeof screenTimeHours === "number" ? screenTimeHours : 0);
+                        const decimal = hoursMinutesToDecimal(hours, 0);
                         setScreenTime(decimal.toString());
                         return;
                       }
                       const minutes = Math.max(0, Math.min(59, parseInt(val) || 0));
                       setScreenTimeMinutes(minutes);
-                      const decimal = hoursMinutesToDecimal(screenTimeHours, minutes);
+                      const hours = screenTimeHours === "" ? 0 : (typeof screenTimeHours === "number" ? screenTimeHours : 0);
+                      const decimal = hoursMinutesToDecimal(hours, minutes);
                       setScreenTime(decimal.toString());
                     }}
                     disabled={isLocked}
