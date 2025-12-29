@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { 
-  calculateWealthDestroyed, 
-  calculateLifeWasted,
   getActiveWeek,
   getWeekRangeString,
   getWeekSundayString,
@@ -26,13 +24,9 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [isLocked, setIsLocked] = useState(false);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [showSpendingHelp, setShowSpendingHelp] = useState(false);
   const [showScreenTimeHelp, setShowScreenTimeHelp] = useState(false);
-  const [lifeChartData, setLifeChartData] = useState<any[]>([]);
-  const [wealthChartData, setWealthChartData] = useState<any[]>([]);
   const [historicalChartData, setHistoricalChartData] = useState<any[]>([]);
-  const [showImpactCharts, setShowImpactCharts] = useState(false);
   const [timeUntilSunday, setTimeUntilSunday] = useState("");
   const [hasSubmittedThisWeek, setHasSubmittedThisWeek] = useState(false);
   const [countdownTime, setCountdownTime] = useState("");
@@ -248,42 +242,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     setSelectedWeek(newWeek);
   };
 
-  const calculateLifeChart = (hoursPerDay: number) => {
-    const totalYears = 60;
-    const sleepAndWork = 40;
-    const phoneUsage = (hoursPerDay * 365 * 60) / (365 * 24);
-    const freeTime = Math.max(0, totalYears - sleepAndWork - phoneUsage);
-
-    return [{
-      name: "Your Life",
-      "Sleep & Work": sleepAndWork,
-      "Time Sent to the Void": phoneUsage,
-      "Free Time Left": freeTime,
-    }];
-  };
-
-  const calculateWealthChart = (weeklySpending: number) => {
-    const years = 20;
-    const data = [];
-    let cashSpent = 0;
-    let investmentValue = 0;
-    const annualSpending = weeklySpending * 52;
-    const rate = 0.08;
-
-    for (let year = 0; year <= years; year++) {
-      cashSpent += annualSpending;
-      if (year > 0) {
-        investmentValue = investmentValue * (1 + rate) + annualSpending;
-      }
-      data.push({
-        year: `Year ${year}`,
-        "Cash Spent": cashSpent,
-        "Investment Potential": investmentValue,
-      });
-    }
-
-    return data;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,12 +268,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       return;
     }
 
-    setLifeChartData(calculateLifeChart(screenTimeNum));
-    setWealthChartData(calculateWealthChart(spendingNum));
-
-    // Calculate for display (not used in scoring)
-    const wealthDestroyed = calculateWealthDestroyed(spendingNum);
-    const lifeWasted = calculateLifeWasted(screenTimeNum);
+    // No longer calculating or showing impact charts
 
     // Screen time scoring: Baseline 3 hours
     // 2 hours = good (gives points)
@@ -372,8 +325,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     const weeklyData = JSON.stringify({
       screen_time: screenTimeNum,
       spending: spendingNum,
-      wealth_destroyed: wealthDestroyed,
-      life_wasted: lifeWasted,
       week_start: weekSunday,
     });
     
@@ -423,17 +374,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     
     console.log("Weekly ritual saved successfully:", { weekSunday, screenTimeNum, spendingNum });
 
-    // Show impact charts temporarily
-    setShowImpactCharts(true);
-    setLifeChartData(calculateLifeChart(screenTimeNum));
-    setWealthChartData(calculateWealthChart(spendingNum));
-    
-    // Hide impact charts after 5 seconds
-    setTimeout(() => {
-      setShowImpactCharts(false);
-      setLifeChartData([]);
-      setWealthChartData([]);
-    }, 5000);
+    // Impact charts removed
     
     setIsSubmitted(true);
     setHasSubmittedThisWeek(true);
@@ -448,21 +389,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     }, 1000);
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      if (payload[0].dataKey === "Investment Potential") {
-        const cashSpent = payload.find((p: any) => p.dataKey === "Cash Spent")?.value || 0;
-        const investmentValue = payload.find((p: any) => p.dataKey === "Investment Potential")?.value || 0;
-        const difference = investmentValue - cashSpent;
-        return (
-          <div className="bg-dark-card border border-dark-border rounded p-2 text-white text-xs">
-            <p>You spent ${cashSpent.toFixed(0)}, but you cost your future self ${difference.toFixed(0)}.</p>
-          </div>
-        );
-      }
-    }
-    return null;
-  };
 
   const weekRange = getWeekRangeString(selectedWeek);
   const today = new Date();
@@ -538,8 +464,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                 </div>
               </div>
             </motion.div>
-          ) : hasSubmittedThisWeek && isOnCurrentWeek ? (
-            // Show countdown timer after submission
+          ) : hasSubmittedThisWeek ? (
+            // Show submitted state with ability to edit/delete
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -549,21 +475,52 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
               <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">
                 Weekly Ritual Complete
               </h3>
-              <p className="text-gray-400 mb-6">
-                You&apos;ve completed your weekly check-in for this week.
+              <p className="text-gray-400 mb-4">
+                Screen Time: {screenTime} hrs/day • Spending: ${spending}
               </p>
-              <div className="bg-dark-bg border border-dark-border rounded-xl p-6">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-blue-400" />
-                  <span className="text-sm text-gray-400">Next ritual available in:</span>
+              {isOnCurrentWeek && (
+                <div className="bg-dark-bg border border-dark-border rounded-xl p-6 mb-4">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Clock className="w-5 h-5 text-blue-400" />
+                    <span className="text-sm text-gray-400">Next ritual available in:</span>
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold text-blue-400 font-mono">
+                    {countdownTime || timeUntilSunday}
+                  </div>
                 </div>
-                <div className="text-3xl sm:text-4xl font-bold text-blue-400 font-mono">
-                  {countdownTime || timeUntilSunday}
-                </div>
-                <p className="text-xs text-gray-500 mt-4">
-                  Come back on Sunday to complete your next weekly ritual
-                </p>
-              </div>
+              )}
+              <button
+                onClick={async () => {
+                  // Delete the weekly ritual entry
+                  const supabase = createClient();
+                  const weekSunday = getWeekSundayString(selectedWeek);
+                  
+                  const { data: logs } = await supabase
+                    .from("logs")
+                    .select("id")
+                    .eq("user_id", userId)
+                    .eq("category", "weekly")
+                    .eq("log_date", weekSunday)
+                    .limit(1);
+                  
+                  if (logs && logs.length > 0) {
+                    const { error } = await supabase
+                      .from("logs")
+                      .delete()
+                      .eq("id", logs[0].id);
+                    
+                    if (error) {
+                      alert(`Failed to delete: ${error.message}`);
+                    } else {
+                      // Reload data
+                      await loadWeekData();
+                    }
+                  }
+                }}
+                className="px-4 py-2 bg-red-600/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-600/30 transition-colors text-sm"
+              >
+                Delete Entry
+              </button>
             </motion.div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -578,9 +535,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                 value={screenTime}
                 onChange={(e) => {
                   setScreenTime(e.target.value);
-                  if (e.target.value) {
-                    setLifeChartData(calculateLifeChart(parseFloat(e.target.value) || 0));
-                  }
                 }}
                 disabled={isLocked}
                 className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -599,9 +553,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                 value={spending}
                 onChange={(e) => {
                   setSpending(e.target.value);
-                  if (e.target.value) {
-                    setWealthChartData(calculateWealthChart(parseFloat(e.target.value) || 0));
-                  }
                 }}
                 disabled={isLocked}
                 className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -651,7 +602,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
             </div>
             <button
               type="submit"
-              disabled={isSubmitted || isLocked}
+              disabled={isLocked}
               className="w-full py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isLocked ? (
@@ -659,10 +610,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                   <Lock className="w-4 h-4" />
                   Locked
                 </span>
-              ) : isSubmitted ? (
-                "Submitted ✓"
               ) : (
-                "Face Reality"
+                "Submit"
               )}
             </button>
           </form>
@@ -671,71 +620,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
         {/* Charts Section */}
         <div className="space-y-4 sm:space-y-6">
-          {/* Impact Charts (shown temporarily after submission) */}
-          {showImpactCharts && (
-            <>
-              {/* Life Chart */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6"
-              >
-                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Life You Are Losing</h3>
-                {lifeChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={lifeChartData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis type="number" domain={[0, 60]} stroke="#9CA3AF" />
-                      <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={80} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a', color: '#fff' }}
-                        formatter={(value: any) => `${value.toFixed(1)} years`}
-                      />
-                      <Bar dataKey="Sleep & Work" stackId="a" fill="#10b981" />
-                      <Bar dataKey="Time Sent to the Void" stackId="a" fill="#ef4444" />
-                      <Bar dataKey="Free Time Left" stackId="a" fill="#fbbf24" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : null}
-              </motion.div>
-
-              {/* Wealth Chart */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6"
-              >
-                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Wealth You Burned</h3>
-                {wealthChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={wealthChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis dataKey="year" stroke="#9CA3AF" />
-                      <YAxis stroke="#9CA3AF" />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="Cash Spent" 
-                        stackId="1" 
-                        stroke="#ef4444" 
-                        fill="#ef4444" 
-                        fillOpacity={0.6}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="Investment Potential" 
-                        stackId="2" 
-                        stroke="#10b981" 
-                        fill="#10b981" 
-                        fillOpacity={0.6}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : null}
-              </motion.div>
-            </>
-          )}
-
           {/* Historical Charts */}
           <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Screen Time History</h3>
