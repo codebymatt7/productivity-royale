@@ -1,6 +1,5 @@
--- Fix the trigger to ensure character_stats entries exist before updating
--- This ensures points are always added correctly
--- SAFE VERSION - No DROP statements
+-- Fix the trigger to exclude weekly ritual from point calculations
+-- Weekly ritual should NOT affect points (as per user requirement)
 
 CREATE OR REPLACE FUNCTION update_character_stats()
 RETURNS TRIGGER AS $$
@@ -11,6 +10,7 @@ BEGIN
   ON CONFLICT (user_id) DO NOTHING;
 
   -- Now update the appropriate stat based on category
+  -- NOTE: Weekly ritual is intentionally excluded - it doesn't affect points
   IF NEW.category = 'workout' THEN
     UPDATE public.character_stats
     SET strength = strength + NEW.points,
@@ -49,30 +49,14 @@ BEGIN
     WHERE user_id = NEW.user_id;
   ELSIF NEW.category = 'penalty' THEN
     -- Penalties affect total_points but not specific stats
-    -- Weekly ritual does NOT affect points (as per user requirement)
     UPDATE public.character_stats
     SET total_points = total_points + NEW.points,
         updated_at = NOW()
     WHERE user_id = NEW.user_id;
-  -- Note: 'weekly' category is intentionally excluded - weekly ritual doesn't affect points
+  -- Weekly category is intentionally excluded - it doesn't affect points
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- Ensure the trigger exists (safe - only creates if it doesn't exist)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger 
-    WHERE tgname = 'on_log_created' 
-    AND tgrelid = 'public.logs'::regclass
-  ) THEN
-    CREATE TRIGGER on_log_created
-      AFTER INSERT ON public.logs
-      FOR EACH ROW
-      EXECUTE FUNCTION update_character_stats();
-  END IF;
-END $$;
 
