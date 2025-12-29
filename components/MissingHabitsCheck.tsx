@@ -59,49 +59,66 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
       // Check if user opened the app at all yesterday (any log exists)
       const hasAnyLogs = yesterdayLogs && yesterdayLogs.length > 0;
       
-      // Only apply penalty if they didn't open the app at all (no logs)
-      if (!hasAnyLogs) {
-        const requiredHabits = [
-          { category: "workout", name: "Workout" },
-          { category: "meditation", name: "Meditate" },
-          { category: "diet", name: "Diet" },
-        ];
+      const requiredHabits = [
+        { category: "workout", name: "Workout", penalty: -5 },
+        { category: "meditation", name: "Meditate", penalty: -5 },
+        { category: "diet", name: "Diet", penalty: -5 },
+      ];
 
-        const missing: string[] = [];
-        
-        // Check which required habits were missing
-        requiredHabits.forEach((habit) => {
-          if (!completedCategories.has(habit.category)) {
-            missing.push(habit.name);
-          }
+      const missing: string[] = [];
+      let totalPenaltyAmount = 0;
+      
+      // Check which required habits were missing
+      requiredHabits.forEach((habit) => {
+        if (!completedCategories.has(habit.category)) {
+          missing.push(habit.name);
+          totalPenaltyAmount += habit.penalty; // -5 for each missing habit
+        }
+      });
+
+      // If user didn't open the app at all (no logs), apply -50 penalty for forgetting
+      if (!hasAnyLogs && missing.length > 0) {
+        // Apply -50 penalty for not opening the app at all
+        const { error } = await supabase.from("logs").insert({
+          user_id: userId,
+          activity_name: `Forgot to check in - Missing: ${missing.join(", ")}`,
+          points: -50, // -50 for not opening the app at all
+          category: "penalty",
+          log_date: today,
         });
 
-        // Only apply penalty if at least one required habit was missing
-        // Apply a small single penalty (5 points total) regardless of how many were missing
-        if (missing.length > 0) {
-          // Apply a single small penalty (5 points) for not filling out required habits
-          const { error } = await supabase.from("logs").insert({
-            user_id: userId,
-            activity_name: `Missing required habits: ${missing.join(", ")}`,
-            points: -5, // Small penalty, only 5 points total
-            category: "penalty",
-            log_date: today,
-          });
-
-          if (!error) {
-            setMissingHabits(missing);
-            setTotalPenalty(-5);
-            setShowModal(true);
-            onPenaltyApplied();
-            localStorage.setItem(checkKey, "true");
-          }
+        if (!error) {
+          setMissingHabits(missing);
+          setTotalPenalty(-50);
+          setShowModal(true);
+          onPenaltyApplied();
+          localStorage.setItem(checkKey, "true");
         } else {
-          // No missing habits, mark as checked
+          localStorage.setItem(checkKey, "true");
+        }
+      } 
+      // If user opened the app but missed some habits, apply -5 for each missing habit
+      else if (hasAnyLogs && missing.length > 0) {
+        // Apply -5 penalty for each missing habit
+        const { error } = await supabase.from("logs").insert({
+          user_id: userId,
+          activity_name: `Missing habits: ${missing.join(", ")}`,
+          points: totalPenaltyAmount, // -5 for each missing habit
+          category: "penalty",
+          log_date: today,
+        });
+
+        if (!error) {
+          setMissingHabits(missing);
+          setTotalPenalty(totalPenaltyAmount);
+          setShowModal(true);
+          onPenaltyApplied();
+          localStorage.setItem(checkKey, "true");
+        } else {
           localStorage.setItem(checkKey, "true");
         }
       } else {
-        // User opened the app (has logs), no penalty even if they missed habits
-        // Mark as checked
+        // No missing habits, mark as checked
         localStorage.setItem(checkKey, "true");
       }
     }
