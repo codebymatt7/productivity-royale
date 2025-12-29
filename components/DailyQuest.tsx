@@ -185,8 +185,12 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
 
     // Allow uncompleting for all types (binary, number, sleep)
     if (isCompleted) {
+      console.log("Uncompleting habit:", quest.category, "for date:", today);
+      
       // Toggle off - delete the log and subtract points
       const supabase = createClient();
+      
+      // First, find the log to delete
       const { data: logs, error: fetchError } = await supabase
         .from("logs")
         .select("id, points, value")
@@ -197,29 +201,17 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       
       if (fetchError) {
         console.error("Error fetching log to delete:", fetchError);
-        alert("Failed to uncomplete habit. Please try again.");
+        alert(`Failed to uncomplete habit: ${fetchError.message}`);
         return;
       }
       
-      if (logs && logs.length > 0 && logs[0]) {
-        const logToDelete = logs[0];
-        const { error: deleteError } = await supabase
-          .from("logs")
-          .delete()
-          .eq("id", logToDelete.id);
-        
-        if (deleteError) {
-          console.error("Error deleting log:", deleteError);
-          alert("Failed to uncomplete habit. Please try again.");
-          return;
-        }
-        
-        // Update local state immediately
+      if (!logs || logs.length === 0) {
+        console.warn("No log found to delete, but state says completed. Clearing state.");
+        // Log not found, but state says completed - clear the state anyway
         const newTodayCompleted = new Set(todayCompleted);
         newTodayCompleted.delete(quest.category);
         setTodayCompleted(newTodayCompleted);
         
-        // Clear the value for number/sleep inputs
         if (quest.type !== "binary") {
           const newValues = new Map(values);
           if (quest.type === "sleep") {
@@ -229,8 +221,44 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           }
           setValues(newValues);
         }
-        
-        // Force a page refresh of stats by reloading logs
+        return;
+      }
+      
+      const logToDelete = logs[0];
+      console.log("Deleting log:", logToDelete.id);
+      
+      // Delete the log (trigger will handle point subtraction)
+      const { error: deleteError } = await supabase
+        .from("logs")
+        .delete()
+        .eq("id", logToDelete.id);
+      
+      if (deleteError) {
+        console.error("Error deleting log:", deleteError);
+        alert(`Failed to uncomplete habit: ${deleteError.message}`);
+        return;
+      }
+      
+      console.log("Log deleted successfully, updating UI state");
+      
+      // Update local state immediately (optimistic update)
+      const newTodayCompleted = new Set(todayCompleted);
+      newTodayCompleted.delete(quest.category);
+      setTodayCompleted(newTodayCompleted);
+      
+      // Clear the value for number/sleep inputs
+      if (quest.type !== "binary") {
+        const newValues = new Map(values);
+        if (quest.type === "sleep") {
+          newValues.set(quest.category, 8);
+        } else {
+          newValues.set(quest.category, 0);
+        }
+        setValues(newValues);
+      }
+      
+      // Reload from database to confirm (with a small delay to let trigger complete)
+      setTimeout(async () => {
         const supabase2 = createClient();
         const { data: refreshedData } = await supabase2
           .from("logs")
@@ -253,7 +281,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           });
           setValues(refreshedValues);
         } else {
-          // No logs found, clear everything
+          // No logs found - ensure state is cleared
           setTodayCompleted(new Set());
           const clearedValues = new Map(values);
           if (quest.type === "sleep") {
@@ -263,22 +291,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           }
           setValues(clearedValues);
         }
-      } else {
-        // Log not found, but state says completed - clear the state
-        const newTodayCompleted = new Set(todayCompleted);
-        newTodayCompleted.delete(quest.category);
-        setTodayCompleted(newTodayCompleted);
-        
-        if (quest.type !== "binary") {
-          const newValues = new Map(values);
-          if (quest.type === "sleep") {
-            newValues.set(quest.category, 8);
-          } else {
-            newValues.set(quest.category, 0);
-          }
-          setValues(newValues);
-        }
-      }
+      }, 500);
+      
       return;
     }
 

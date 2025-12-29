@@ -39,7 +39,7 @@ export default function Leaderboard() {
       }
 
       // Query character stats with user info
-      // Use left join to ensure we get all users even if they don't have stats
+      // Get ALL users with stats, including those with 0 points
       const { data: stats, error: statsError } = await supabase
         .from("character_stats")
         .select(`
@@ -48,7 +48,7 @@ export default function Leaderboard() {
           users!inner(id, username, display_name)
         `)
         .order("total_points", { ascending: false })
-        .limit(20); // Get more to ensure we have real users
+        .limit(50); // Get more users to ensure we see everyone
 
       if (statsError) {
         console.error("Error loading leaderboard stats:", statsError);
@@ -130,23 +130,24 @@ export default function Leaderboard() {
         }
       }
 
-      const allEntries: LeaderboardEntry[] = [
-        ...dummyUsers.map((user, index) => ({
-          ...user,
-          rank: index + 1,
-        })),
-        ...realEntries.map((entry) => ({
+      // Combine real entries with current user entry if not already included
+      let allRealEntries = [...realEntries];
+      
+      // If current user entry exists and isn't in the list, add it
+      if (currentUserEntry && !allRealEntries.some(e => e.isCurrentUser)) {
+        allRealEntries.push(currentUserEntry);
+      }
+      
+      // Sort by points (descending) and assign ranks
+      const sortedEntries = allRealEntries
+        .sort((a, b) => b.total_points - a.total_points)
+        .map((entry, index) => ({
           ...entry,
-          rank: entry.rank + dummyUsers.length,
-        })),
-      ].sort((a, b) => b.total_points - a.total_points)
-      .slice(0, 5)
-      .map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }));
-
-      setEntries(allEntries);
+          rank: index + 1,
+        }));
+      
+      // Show top 10 real users (remove dummy users)
+      setEntries(sortedEntries.slice(0, 10));
       setLoading(false);
     }
 
@@ -228,7 +229,7 @@ export default function Leaderboard() {
           </div>
         ))}
 
-        {/* Current User (if not in top 5) */}
+        {/* Current User (if not in top 10) */}
         {currentUserEntry && !entries.some((e) => e.isCurrentUser) && (
           <div className="mt-3 pt-3 border-t border-dark-border">
             <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
