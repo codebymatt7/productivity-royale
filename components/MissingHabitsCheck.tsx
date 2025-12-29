@@ -37,7 +37,7 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         .eq("user_id", userId)
         .eq("category", "penalty")
         .eq("log_date", today)
-        .like("activity_name", "%Missing habit%")
+        .or("activity_name.ilike.%Missing habit%,activity_name.ilike.%Forgot to check in%")
         .limit(1);
 
       if (penaltyCheck && penaltyCheck.length > 0) {
