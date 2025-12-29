@@ -9,6 +9,8 @@ import {
   getNextSunday,
   getWeekSunday,
   getWeekSaturday,
+  decimalToHoursMinutes,
+  hoursMinutesToDecimal,
 } from "@/lib/utils";
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Lock, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line } from "recharts";
@@ -21,6 +23,8 @@ interface WeeklyRitualProps {
 export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [screenTime, setScreenTime] = useState("");
   const [spending, setSpending] = useState("");
+  const [screenTimeHours, setScreenTimeHours] = useState<number>(3);
+  const [screenTimeMinutes, setScreenTimeMinutes] = useState<number>(0);
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [isLocked, setIsLocked] = useState(false);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
@@ -547,19 +551,45 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
               <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Screen Time (Hours/Day)
               </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value={screenTime}
-                onChange={(e) => {
-                  setScreenTime(e.target.value);
-                }}
-                disabled={isLocked}
-                className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="e.g., 6.5"
-                required={!isLocked}
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="24"
+                    value={screenTimeHours}
+                    onChange={(e) => {
+                      const hours = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                      setScreenTimeHours(hours);
+                      const decimal = hoursMinutesToDecimal(hours, screenTimeMinutes);
+                      setScreenTime(decimal.toString());
+                    }}
+                    disabled={isLocked}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="3"
+                    required={!isLocked}
+                  />
+                  <span className="text-gray-400 text-sm">h</span>
+                </div>
+                <div className="flex items-center gap-1 flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={screenTimeMinutes}
+                    onChange={(e) => {
+                      const minutes = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                      setScreenTimeMinutes(minutes);
+                      const decimal = hoursMinutesToDecimal(screenTimeHours, minutes);
+                      setScreenTime(decimal.toString());
+                    }}
+                    disabled={isLocked}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="0"
+                  />
+                  <span className="text-gray-400 text-sm">m</span>
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">

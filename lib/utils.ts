@@ -11,6 +11,22 @@ export function cn(...inputs: ClassValue[]) {
  * If it's before 3am, it's still considered the previous day
  * Never goes backwards in time - always returns current or future dates
  */
+/**
+ * Convert decimal hours to hours and minutes
+ */
+export function decimalToHoursMinutes(decimal: number): { hours: number; minutes: number } {
+  const hours = Math.floor(decimal);
+  const minutes = Math.round((decimal - hours) * 60);
+  return { hours, minutes };
+}
+
+/**
+ * Convert hours and minutes to decimal hours
+ */
+export function hoursMinutesToDecimal(hours: number, minutes: number): number {
+  return hours + minutes / 60;
+}
+
 export function getTodayDateString(): string {
   const now = new Date()
   const hour = now.getHours()
