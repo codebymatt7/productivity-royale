@@ -109,7 +109,7 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
             <div className="text-center">
               <div className="text-4xl mb-4">💪</div>
               <h3 className="text-xl sm:text-2xl font-semibold text-yellow-400 mb-4">
-                Yesterday's Missed Opportunities
+                Yesterday&apos;s Missed Opportunities
               </h3>
               <p className="text-gray-300 mb-4 text-sm sm:text-base">
                 You missed these habits yesterday:
@@ -128,7 +128,7 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
                 onClick={() => setShowModal(false)}
                 className="px-6 py-2 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 font-semibold rounded-xl hover:bg-yellow-500/30 transition-colors"
               >
-                Let's Go
+                Let&apos;s Go
               </button>
             </div>
           </motion.div>
