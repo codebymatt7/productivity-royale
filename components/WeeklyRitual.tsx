@@ -156,27 +156,45 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     // Load all weekly logs for historical chart
     const { data: allLogs } = await supabase
       .from("logs")
-      .select("activity_name, log_date")
+      .select("activity_name, log_date, created_at")
       .eq("user_id", userId)
       .eq("category", "weekly")
       .order("log_date", { ascending: true });
 
     if (allLogs && allLogs.length > 0) {
-      const historicalData = allLogs
-        .map((log) => {
-          try {
-            const weeklyData = JSON.parse(log.activity_name);
-            const weekDate = new Date(log.log_date);
-            return {
+      // Group by log_date to handle duplicates (take the most recent entry per week)
+      const weekMap = new Map<string, { week: string; screenTime: number; spending: number; created_at: string }>();
+      
+      allLogs.forEach((log) => {
+        try {
+          const weeklyData = JSON.parse(log.activity_name);
+          const weekDate = new Date(log.log_date);
+          const weekKey = log.log_date; // Use log_date as unique key (Sunday of the week)
+          
+          // If we already have an entry for this week, keep the one with the latest created_at
+          const existing = weekMap.get(weekKey);
+          if (!existing || (log.created_at && existing.created_at < log.created_at)) {
+            weekMap.set(weekKey, {
               week: weekDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
               screenTime: weeklyData.screen_time || 0,
               spending: weeklyData.spending || 0,
-            };
-          } catch (e) {
-            return null;
+              created_at: log.created_at || "",
+            });
           }
-        })
-        .filter((item) => item !== null);
+        } catch (e) {
+          console.error("Error parsing weekly data:", e);
+        }
+      });
+      
+      // Convert map to array and sort by week date
+      const historicalData = Array.from(weekMap.values())
+        .map(({ week, screenTime, spending }) => ({ week, screenTime, spending }))
+        .sort((a, b) => {
+          // Sort by week date (parse the date string)
+          const dateA = new Date(a.week);
+          const dateB = new Date(b.week);
+          return dateA.getTime() - dateB.getTime();
+        });
 
       setHistoricalChartData(historicalData);
     } else {
