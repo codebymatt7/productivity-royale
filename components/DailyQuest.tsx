@@ -180,7 +180,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       const supabase = createClient();
       const { data: logs, error: fetchError } = await supabase
         .from("logs")
-        .select("id, points")
+        .select("id, points, value")
         .eq("user_id", userId)
         .eq("category", quest.category)
         .eq("log_date", today)
@@ -192,11 +192,12 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         return;
       }
       
-      if (logs && logs[0]) {
+      if (logs && logs.length > 0 && logs[0]) {
+        const logToDelete = logs[0];
         const { error: deleteError } = await supabase
           .from("logs")
           .delete()
-          .eq("id", logs[0].id);
+          .eq("id", logToDelete.id);
         
         if (deleteError) {
           console.error("Error deleting log:", deleteError);
@@ -212,11 +213,15 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         // Clear the value for number/sleep inputs
         if (quest.type !== "binary") {
           const newValues = new Map(values);
-          newValues.set(quest.category, quest.type === "sleep" ? 8 : 0);
+          if (quest.type === "sleep") {
+            newValues.set(quest.category, 8);
+          } else {
+            newValues.set(quest.category, 0);
+          }
           setValues(newValues);
         }
         
-        // Reload data to ensure sync
+        // Force a page refresh of stats by reloading logs
         const supabase2 = createClient();
         const { data: refreshedData } = await supabase2
           .from("logs")
@@ -230,12 +235,40 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           
           const refreshedValues = new Map<string, number>();
           refreshedData.forEach((log) => {
-            refreshedValues.set(log.category, Number(log.value) || 0);
+            const numValue = Number(log.value);
+            if (log.category === "sleep") {
+              refreshedValues.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
+            } else {
+              refreshedValues.set(log.category, numValue || 0);
+            }
           });
           setValues(refreshedValues);
+        } else {
+          // No logs found, clear everything
+          setTodayCompleted(new Set());
+          const clearedValues = new Map(values);
+          if (quest.type === "sleep") {
+            clearedValues.set(quest.category, 8);
+          } else {
+            clearedValues.set(quest.category, 0);
+          }
+          setValues(clearedValues);
         }
       } else {
-        alert("No log found to delete. The habit may already be uncompleted.");
+        // Log not found, but state says completed - clear the state
+        const newTodayCompleted = new Set(todayCompleted);
+        newTodayCompleted.delete(quest.category);
+        setTodayCompleted(newTodayCompleted);
+        
+        if (quest.type !== "binary") {
+          const newValues = new Map(values);
+          if (quest.type === "sleep") {
+            newValues.set(quest.category, 8);
+          } else {
+            newValues.set(quest.category, 0);
+          }
+          setValues(newValues);
+        }
       }
       return;
     }
@@ -363,9 +396,24 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     return "text-gray-400";
   };
 
+  // Format today's date for display
+  const formatDisplayDate = (dateString: string): string => {
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-white">Daily Habits</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-semibold text-white">Daily Habits</h2>
+        <div className="text-sm sm:text-base text-gray-400 font-medium">
+          {formatDisplayDate(today)}
+        </div>
+      </div>
       
       {/* Daily Affirmation Display */}
       {dailyAffirmation && (
@@ -592,11 +640,29 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
               </div>
 
               {/* Sleep Input */}
-              <div className="mt-auto space-y-2">
-                <div className="flex items-center justify-between gap-2">
+              {isCompleted ? (
+                <div className="mt-auto space-y-2">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-white mb-1">
+                      {currentValue || 8} Hours
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={() => handleSubmit(quest, currentValue || 8)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white"
+                  >
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>Completed</span>
+                  </motion.button>
+                </div>
+              ) : (
+                <div className="mt-auto space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => {
-                        const newValue = Math.max(0, (currentValue || 0) - 0.5);
+                        const newValue = Math.max(0, (currentValue || 8) - 0.5);
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
                       className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
@@ -620,7 +686,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     />
                     <button
                       onClick={() => {
-                        const newValue = (currentValue || 0) + 0.5;
+                        const newValue = (currentValue || 8) + 0.5;
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
                       className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
@@ -654,7 +720,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     </div>
                   )}
                   <motion.button
-                    onClick={() => handleSubmit(quest, currentValue)}
+                    onClick={() => handleSubmit(quest, currentValue || 8)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={currentValue <= 0}
@@ -668,6 +734,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     <span>Save</span>
                   </motion.button>
                 </div>
+              )}
 
                 <AnimatePresence>
                   {isAnimating && !isCompleted && (

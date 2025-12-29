@@ -5,14 +5,34 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Get today's date string (YYYY-MM-DD)
+ * Uses 3am as the cutoff to handle late-night users
+ * If it's before 3am, it's still considered the previous day
+ */
 export function getTodayDateString(): string {
-  const today = new Date()
-  return today.toISOString().split('T')[0]
+  const now = new Date()
+  const hour = now.getHours()
+  
+  // If it's before 3am, use yesterday's date
+  if (hour < 3) {
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    return yesterday.toISOString().split('T')[0]
+  }
+  
+  return now.toISOString().split('T')[0]
 }
 
 export function getYesterdayDateString(): string {
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
+  const now = new Date()
+  const hour = now.getHours()
+  
+  // If it's before 3am, yesterday is 2 days ago
+  // Otherwise, yesterday is 1 day ago
+  const daysBack = hour < 3 ? 2 : 1
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - daysBack)
   return yesterday.toISOString().split('T')[0]
 }
 
