@@ -34,27 +34,69 @@ export default function ProfilePage() {
       setUserId(user.id);
       setEmail(user.email || "");
 
-      // Get user profile
-      const { data: profile } = await supabase
+      // Get user profile - use maybeSingle to handle missing rows gracefully
+      const { data: profile, error: profileError } = await supabase
         .from("users")
         .select("username, created_at")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
-        setUsername(profile.username);
-        setCreatedAt(new Date(profile.created_at).toLocaleDateString());
+        setUsername(profile.username || "");
+        if (profile.created_at) {
+          setCreatedAt(new Date(profile.created_at).toLocaleDateString());
+        }
+      } else if (profileError) {
+        console.error("Error loading profile:", profileError);
+        // Create profile if it doesn't exist
+        const { data: newProfile } = await supabase
+          .from("users")
+          .insert({
+            id: user.id,
+            username: user.email?.split("@")[0] || "Hero",
+          })
+          .select()
+          .single();
+        if (newProfile) {
+          setUsername(newProfile.username);
+          if (newProfile.created_at) {
+            setCreatedAt(new Date(newProfile.created_at).toLocaleDateString());
+          }
+        }
       }
 
-      // Get character stats
-      const { data: characterStats } = await supabase
+      // Get character stats - use maybeSingle to handle missing rows gracefully
+      const { data: characterStats, error: statsError } = await supabase
         .from("character_stats")
         .select("total_points, strength, intelligence, charisma, willpower")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (characterStats) {
-        setStats(characterStats);
+        setStats({
+          total_points: characterStats.total_points || 0,
+          strength: characterStats.strength || 0,
+          intelligence: characterStats.intelligence || 0,
+          charisma: characterStats.charisma || 0,
+          willpower: characterStats.willpower || 0,
+        });
+      } else if (statsError) {
+        console.error("Error loading stats:", statsError);
+        // Create stats if they don't exist
+        const { data: newStats } = await supabase
+          .from("character_stats")
+          .insert({ user_id: user.id })
+          .select()
+          .single();
+        if (newStats) {
+          setStats({
+            total_points: newStats.total_points || 0,
+            strength: newStats.strength || 0,
+            intelligence: newStats.intelligence || 0,
+            charisma: newStats.charisma || 0,
+            willpower: newStats.willpower || 0,
+          });
+        }
       }
 
       setLoading(false);

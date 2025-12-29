@@ -35,57 +35,60 @@ export default function Home() {
 
       setUserId(user.id);
 
-      // Ensure user profile exists
+      // Ensure user profile exists - use maybeSingle to handle missing rows gracefully
       const { data: profile, error: profileError } = await supabase
         .from("users")
         .select("username")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
         setUsername(profile.username);
       } else {
         // Create user profile if it doesn't exist
+        const sanitizedUsername = (user.email?.split("@")[0] || "Hero").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+        const finalUsername = sanitizedUsername.length >= 3 ? sanitizedUsername : "hero" + Math.floor(Math.random() * 1000);
+        
         const { data: newProfile, error: insertError } = await supabase
           .from("users")
           .insert({
             id: user.id,
-            username: user.email?.split("@")[0] || "Hero",
+            username: finalUsername,
           })
           .select()
-          .single();
+          .maybeSingle();
 
-        if (insertError && !insertError.message.includes("duplicate")) {
+        if (insertError && !insertError.message.includes("duplicate") && !insertError.message.includes("unique")) {
           console.error("Error creating user profile:", insertError);
         }
 
         if (newProfile) {
           setUsername(newProfile.username);
-        } else if (!insertError) {
-          // If no error but no profile, try to fetch it (might have been created by trigger)
+        } else if (!insertError || insertError.message.includes("duplicate") || insertError.message.includes("unique")) {
+          // If no error or duplicate error, try to fetch it (might have been created by trigger or already exists)
           const { data: fetchedProfile } = await supabase
             .from("users")
             .select("username")
             .eq("id", user.id)
-            .single();
+            .maybeSingle();
           if (fetchedProfile) {
             setUsername(fetchedProfile.username);
           }
         }
       }
 
-      // Ensure character_stats exists
+      // Ensure character_stats exists - use maybeSingle to handle missing rows gracefully
       const { data: existingStats } = await supabase
         .from("character_stats")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!existingStats) {
         const { error: statsError } = await supabase.from("character_stats").insert({
           user_id: user.id,
         });
-        if (statsError && !statsError.message.includes("duplicate")) {
+        if (statsError && !statsError.message.includes("duplicate") && !statsError.message.includes("unique")) {
           console.error("Error creating character stats:", statsError);
         }
       }
@@ -94,7 +97,7 @@ export default function Home() {
         .from("character_stats")
         .select("total_points")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (stats) {
         setLifetimeLevel(Math.floor(stats.total_points / 100));

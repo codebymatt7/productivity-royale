@@ -24,6 +24,25 @@ export default function AuthPage() {
     checkAuth();
   }, [router]);
 
+  // Validate username: alphanumeric, underscores, hyphens only, no spaces
+  const validateUsername = (username: string): string | null => {
+    if (!username) return null;
+    // Remove spaces and convert to lowercase
+    const sanitized = username.trim().toLowerCase().replace(/\s+/g, "");
+    // Check if it matches alphanumeric + underscores + hyphens
+    if (!/^[a-z0-9_-]+$/.test(sanitized)) {
+      return "Username can only contain letters, numbers, underscores, and hyphens";
+    }
+    // Check length
+    if (sanitized.length < 3) {
+      return "Username must be at least 3 characters";
+    }
+    if (sanitized.length > 20) {
+      return "Username must be 20 characters or less";
+    }
+    return sanitized;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -32,6 +51,38 @@ export default function AuthPage() {
     const supabase = createClient();
 
     if (isSignUp) {
+      // Validate and sanitize username
+      let finalUsername = username || email.split("@")[0];
+      const validationResult = validateUsername(finalUsername);
+      
+      if (typeof validationResult === "string" && validationResult.startsWith("Username")) {
+        // It's an error message
+        setError(validationResult);
+        setLoading(false);
+        return;
+      } else if (validationResult) {
+        // It's a sanitized username
+        finalUsername = validationResult;
+      } else {
+        // No username provided, use email prefix
+        finalUsername = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "");
+        if (finalUsername.length < 3) {
+          finalUsername = "hero" + Math.floor(Math.random() * 1000);
+        }
+      }
+
+      // Check if username is already taken
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("username", finalUsername)
+        .maybeSingle();
+
+      if (existingUser) {
+        // Username taken, append random number
+        finalUsername = finalUsername + Math.floor(Math.random() * 1000);
+      }
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -47,7 +98,7 @@ export default function AuthPage() {
         // Create user profile
         const { error: profileError } = await supabase.from("users").insert({
           id: data.user.id,
-          username: username || email.split("@")[0],
+          username: finalUsername,
         });
 
         if (profileError) {

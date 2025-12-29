@@ -15,17 +15,22 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
   const [showModal, setShowModal] = useState(false);
   const [missingHabits, setMissingHabits] = useState<string[]>([]);
   const [totalPenalty, setTotalPenalty] = useState(0);
-  const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
     async function checkMissingHabits() {
-      if (hasChecked) return;
-
       const supabase = createClient();
       const yesterday = getYesterdayDateString();
       const today = getTodayDateString();
 
-      // Check if we already applied penalties today
+      // Use localStorage to track if we've checked today (persists across page reloads)
+      const checkKey = `missingHabitsChecked_${userId}_${today}`;
+      const hasCheckedToday = localStorage.getItem(checkKey);
+      
+      if (hasCheckedToday === "true") {
+        return; // Already checked today
+      }
+
+      // Check if we already applied penalties today (double-check)
       const { data: penaltyCheck } = await supabase
         .from("logs")
         .select("id")
@@ -36,7 +41,7 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         .limit(1);
 
       if (penaltyCheck && penaltyCheck.length > 0) {
-        setHasChecked(true);
+        localStorage.setItem(checkKey, "true");
         return;
       }
 
@@ -85,36 +90,17 @@ export default function MissingHabitsCheck({ userId, onPenaltyApplied }: Missing
         setTotalPenalty(penalty);
         setShowModal(true);
         onPenaltyApplied();
+        localStorage.setItem(checkKey, "true");
+      } else {
+        // No missing habits, mark as checked
+        localStorage.setItem(checkKey, "true");
       }
-
-      setHasChecked(true);
     }
 
-    // Check immediately on mount (will only apply if not already checked today)
+    // Only check if user has been around for at least one day
+    // Skip check for brand new users (no logs yet)
     checkMissingHabits();
-
-    // Set up interval to check at midnight each day
-    const now = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 1, 0, 0); // 12:01 AM tomorrow
-
-    const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-    const timeout = setTimeout(() => {
-      setHasChecked(false); // Reset so it checks again
-      checkMissingHabits();
-      
-      // Set up daily interval
-      const dailyInterval = setInterval(() => {
-        setHasChecked(false);
-        checkMissingHabits();
-      }, 24 * 60 * 60 * 1000); // 24 hours
-
-      return () => clearInterval(dailyInterval);
-    }, timeUntilMidnight);
-
-    return () => clearTimeout(timeout);
-  }, [userId, hasChecked, onPenaltyApplied]);
+  }, [userId, onPenaltyApplied]);
 
   return (
     <AnimatePresence>
