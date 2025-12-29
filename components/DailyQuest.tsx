@@ -51,10 +51,19 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
   useEffect(() => {
     const checkDate = () => {
       const currentToday = getTodayDateString();
+      // Only update if the new date is different AND not in the past
+      // Compare dates to ensure we never go backwards
       if (currentToday !== today) {
-        setToday(currentToday);
-        setTodayCompleted(new Set());
-        setValues(new Map());
+        // Parse dates to compare
+        const currentDate = new Date(currentToday + 'T00:00:00');
+        const storedDate = new Date(today + 'T00:00:00');
+        
+        // Only update if current date is >= stored date (never go backwards)
+        if (currentDate >= storedDate) {
+          setToday(currentToday);
+          setTodayCompleted(new Set());
+          setValues(new Map());
+        }
       }
     };
 

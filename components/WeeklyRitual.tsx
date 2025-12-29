@@ -120,14 +120,13 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     const weekSunday = getWeekSundayString(selectedWeek);
     const supabase = createClient();
     
-    // Find weekly log for this week
+    // Find weekly log for this week - use exact date match
     const { data: logs } = await supabase
       .from("logs")
       .select("activity_name, points")
       .eq("user_id", userId)
       .eq("category", "weekly")
-      .gte("log_date", weekSunday)
-      .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0])
+      .eq("log_date", weekSunday) // Use exact date match for consistency
       .order("log_date", { ascending: false })
       .limit(1);
 
@@ -379,33 +378,50 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     });
     
     // Always delete existing weekly log for this week if it exists (allow editing/resubmission)
-    const { data: existingLogs } = await supabase
+    // Use exact date match instead of range to be more precise
+    const { data: existingLogs, error: fetchError } = await supabase
       .from("logs")
       .select("id")
       .eq("user_id", userId)
       .eq("category", "weekly")
-      .gte("log_date", weekSunday)
-      .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0]);
+      .eq("log_date", weekSunday); // Use exact date match
+
+    if (fetchError) {
+      console.error("Error fetching existing logs:", fetchError);
+    }
 
     if (existingLogs && existingLogs.length > 0) {
+      // Delete all existing logs for this week
       for (const log of existingLogs) {
-        await supabase.from("logs").delete().eq("id", log.id);
+        const { error: deleteError } = await supabase
+          .from("logs")
+          .delete()
+          .eq("id", log.id);
+        
+        if (deleteError) {
+          console.error("Error deleting existing log:", deleteError);
+        }
       }
     }
 
-    const { error } = await supabase.from("logs").insert({
-      user_id: userId,
-      activity_name: weeklyData,
-      points: totalPoints,
-      category: "weekly",
-      log_date: weekSunday, // Store with week's Sunday date
-    });
+    // Insert new log (use upsert to handle race conditions)
+    const { error: insertError } = await supabase
+      .from("logs")
+      .insert({
+        user_id: userId,
+        activity_name: weeklyData,
+        points: totalPoints,
+        category: "weekly",
+        log_date: weekSunday, // Store with week's Sunday date
+      });
 
-    if (error) {
-      console.error("Error logging weekly ritual:", error);
-      alert(`Failed to submit: ${error.message}. Please try again.`);
+    if (insertError) {
+      console.error("Error logging weekly ritual:", insertError);
+      alert(`Failed to submit: ${insertError.message}. Please try again.`);
       return;
     }
+    
+    console.log("Weekly ritual saved successfully:", { weekSunday, screenTimeNum, spendingNum });
 
     // Show impact charts temporarily
     setShowImpactCharts(true);
@@ -478,21 +494,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
             >
               Go to Current Week
             </button>
-          )}
-          {isLocked && isCurrentWeek && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-center gap-2 mt-2 text-yellow-400"
-            >
-              <Lock className="w-4 h-4" />
-              <span className="text-sm sm:text-base">Come back Sunday to check in</span>
-              {timeUntilSunday && (
-                <span className="text-xs sm:text-sm text-gray-400 ml-2">
-                  ({timeUntilSunday})
-                </span>
-              )}
-            </motion.div>
           )}
         </div>
         

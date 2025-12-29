@@ -39,6 +39,7 @@ export default function Leaderboard() {
       }
 
       // Query character stats with user info
+      // Use left join to ensure we get all users even if they don't have stats
       const { data: stats, error: statsError } = await supabase
         .from("character_stats")
         .select(`
@@ -47,18 +48,28 @@ export default function Leaderboard() {
           users!inner(id, username, display_name)
         `)
         .order("total_points", { ascending: false })
-        .limit(10);
+        .limit(20); // Get more to ensure we have real users
 
       if (statsError) {
         console.error("Error loading leaderboard stats:", statsError);
+        console.error("Stats error details:", JSON.stringify(statsError, null, 2));
+      }
+      
+      // Debug: Log what we got
+      if (stats) {
+        console.log("Leaderboard stats loaded:", stats.length, "users");
+        stats.forEach((stat) => {
+          console.log(`User ${stat.user_id}: ${stat.total_points} points`);
+        });
       }
 
       const realEntries: LeaderboardEntry[] = [];
       if (stats && stats.length > 0) {
-        // Build entries
+        // Build entries - include ALL users, even with 0 points
         stats.forEach((stat, index) => {
-          const totalPoints = Math.max(0, stat.total_points || 0); // Don't allow negative points for level calculation
-          const level = Math.max(1, Math.floor(totalPoints / 100)); // Level can never be negative
+          // Use the actual total_points, but ensure it's not negative
+          const totalPoints = Math.max(0, stat.total_points ?? 0);
+          const level = Math.max(1, Math.floor(totalPoints / 100));
           let tier: "King" | "Squire" | "Peasant" = "Peasant";
           if (totalPoints >= 1000) tier = "King";
           else if (totalPoints >= 500) tier = "Squire";
@@ -67,7 +78,7 @@ export default function Leaderboard() {
           const displayName = userData?.display_name || userData?.username || "Unknown";
 
           const entry: LeaderboardEntry = {
-            username: displayName, // Use display_name for leaderboard display
+            username: displayName,
             total_points: totalPoints,
             rank: index + 1,
             level,
@@ -82,6 +93,41 @@ export default function Leaderboard() {
             realEntries.push(entry);
           }
         });
+      } else {
+        // If no stats found, try to get current user's stats separately
+        if (user) {
+          const { data: userStats } = await supabase
+            .from("character_stats")
+            .select("total_points")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          
+          if (userStats) {
+            const totalPoints = Math.max(0, userStats.total_points ?? 0);
+            const level = Math.max(1, Math.floor(totalPoints / 100));
+            let tier: "King" | "Squire" | "Peasant" = "Peasant";
+            if (totalPoints >= 1000) tier = "King";
+            else if (totalPoints >= 500) tier = "Squire";
+            
+            const { data: userProfile } = await supabase
+              .from("users")
+              .select("display_name, username")
+              .eq("id", user.id)
+              .maybeSingle();
+            
+            const displayName = userProfile?.display_name || userProfile?.username || "You";
+            
+            setCurrentUserEntry({
+              username: displayName,
+              total_points: totalPoints,
+              rank: 999,
+              level,
+              tier,
+              rankChange: "same",
+              isCurrentUser: true,
+            });
+          }
+        }
       }
 
       const allEntries: LeaderboardEntry[] = [

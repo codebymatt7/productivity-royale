@@ -6,34 +6,52 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Get today's date string (YYYY-MM-DD)
+ * Get today's date string (YYYY-MM-DD) in local timezone
  * Uses 3am as the cutoff to handle late-night users
  * If it's before 3am, it's still considered the previous day
+ * Never goes backwards in time - always returns current or future dates
  */
 export function getTodayDateString(): string {
   const now = new Date()
   const hour = now.getHours()
   
+  // Get local date components (not UTC)
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const date = now.getDate()
+  
   // If it's before 3am, use yesterday's date
   if (hour < 3) {
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    return yesterday.toISOString().split('T')[0]
+    const yesterday = new Date(year, month, date - 1)
+    const yYear = yesterday.getFullYear()
+    const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0')
+    const yDate = String(yesterday.getDate()).padStart(2, '0')
+    return `${yYear}-${yMonth}-${yDate}`
   }
   
-  return now.toISOString().split('T')[0]
+  // Return today's date in local timezone
+  const m = String(month + 1).padStart(2, '0')
+  const d = String(date).padStart(2, '0')
+  return `${year}-${m}-${d}`
 }
 
 export function getYesterdayDateString(): string {
   const now = new Date()
   const hour = now.getHours()
   
+  // Get local date components
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const date = now.getDate()
+  
   // If it's before 3am, yesterday is 2 days ago
   // Otherwise, yesterday is 1 day ago
   const daysBack = hour < 3 ? 2 : 1
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - daysBack)
-  return yesterday.toISOString().split('T')[0]
+  const yesterday = new Date(year, month, date - daysBack)
+  const yYear = yesterday.getFullYear()
+  const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0')
+  const yDate = String(yesterday.getDate()).padStart(2, '0')
+  return `${yYear}-${yMonth}-${yDate}`
 }
 
 export function isToday(dateString: string): boolean {

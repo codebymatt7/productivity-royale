@@ -94,7 +94,9 @@ export default function History({ userId }: HistoryProps) {
   }, [userId]);
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse the date string (YYYY-MM-DD) directly to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -156,8 +158,8 @@ export default function History({ userId }: HistoryProps) {
                       {formatDate(entry.date)}
                     </div>
                     {entry.dailyScore > 0 && (
-                      <div className="px-2 py-0.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full">
-                        <span className="text-xs font-semibold text-blue-400">
+                      <div className="px-2 py-0.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-semibold text-blue-400 leading-none">
                           {entry.dailyScore} pts
                         </span>
                       </div>
