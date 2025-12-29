@@ -376,7 +376,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     // Impact charts removed
     
-    setIsSubmitted(true);
     setHasSubmittedThisWeek(true);
     setOriginalScreenTime(screenTime);
     setOriginalSpending(spending);

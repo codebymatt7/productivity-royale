@@ -257,16 +257,22 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         setValues(newValues);
       }
       
-      // Reload from database to confirm (with a small delay to let trigger complete)
+      // Force reload from database after a delay to ensure trigger completes
+      // Use a longer delay to ensure the database trigger has finished
       setTimeout(async () => {
         const supabase2 = createClient();
-        const { data: refreshedData } = await supabase2
+        const { data: refreshedData, error: refreshError } = await supabase2
           .from("logs")
           .select("category, value, points")
           .eq("user_id", userId)
           .eq("log_date", today);
         
-        if (refreshedData) {
+        if (refreshError) {
+          console.error("Error refreshing logs:", refreshError);
+          return;
+        }
+        
+        if (refreshedData && refreshedData.length > 0) {
           const refreshedSet = new Set(refreshedData.map((log) => log.category));
           setTodayCompleted(refreshedSet);
           
@@ -291,7 +297,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           }
           setValues(clearedValues);
         }
-      }, 500);
+      }, 1000); // Increased delay to ensure trigger completes
       
       return;
     }

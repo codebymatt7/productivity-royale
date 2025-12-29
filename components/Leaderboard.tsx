@@ -40,7 +40,7 @@ export default function Leaderboard() {
 
       // Query character stats with user info
       // Get ALL users with stats, including those with 0 points
-      const { data: stats, error: statsError } = await supabase
+      let { data: stats, error: statsError } = await supabase
         .from("character_stats")
         .select(`
           total_points,
@@ -49,6 +49,28 @@ export default function Leaderboard() {
         `)
         .order("total_points", { ascending: false })
         .limit(50); // Get more users to ensure we see everyone
+      
+      // Also ensure we get the current user even if they have 0 points or aren't in top 50
+      if (user) {
+        const { data: currentUserStats } = await supabase
+          .from("character_stats")
+          .select(`
+            total_points,
+            user_id,
+            users!inner(id, username, display_name)
+          `)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        // If current user exists and isn't in the stats list, add them
+        if (currentUserStats && (!stats || !stats.some(s => s.user_id === user.id))) {
+          if (!stats) {
+            stats = [currentUserStats];
+          } else {
+            stats = [...stats, currentUserStats];
+          }
+        }
+      }
 
       if (statsError) {
         console.error("Error loading leaderboard stats:", statsError);
@@ -152,7 +174,7 @@ export default function Leaderboard() {
     }
 
     loadLeaderboard();
-    const interval = setInterval(loadLeaderboard, 10000); // Update every 10 seconds for live updates
+    const interval = setInterval(loadLeaderboard, 3000); // Update every 3 seconds for live updates
     return () => clearInterval(interval);
   }, []);
 
