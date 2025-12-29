@@ -110,46 +110,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     return () => clearInterval(interval);
   }, [selectedWeek, hasSubmittedThisWeek]);
 
-  const loadWeekData = useCallback(async () => {
-    const weekSunday = getWeekSundayString(selectedWeek);
-    const supabase = createClient();
-    
-    // Find weekly log for this week - use exact date match
-    const { data: logs } = await supabase
-      .from("logs")
-      .select("activity_name, points")
-      .eq("user_id", userId)
-      .eq("category", "weekly")
-      .eq("log_date", weekSunday) // Use exact date match for consistency
-      .order("log_date", { ascending: false })
-      .limit(1);
-
-    if (logs && logs.length > 0) {
-      try {
-        const weeklyData = JSON.parse(logs[0].activity_name);
-        const screenTimeStr = weeklyData.screen_time?.toString() || "";
-        const spendingStr = weeklyData.spending?.toString() || "";
-        setScreenTime(screenTimeStr);
-        setSpending(spendingStr);
-        setOriginalScreenTime(screenTimeStr);
-        setOriginalSpending(spendingStr);
-        setHasSubmittedThisWeek(true);
-      } catch (e) {
-        console.error("Error parsing weekly data:", e);
-      }
-    } else {
-      // Reset to defaults if no data
-      setScreenTime("");
-      setSpending("");
-      setOriginalScreenTime("");
-      setOriginalSpending("");
-      setHasSubmittedThisWeek(false);
-    }
-    
-    // Load historical data for charts
-    await loadHistoricalData();
-  }, [selectedWeek, userId, loadHistoricalData]);
-
   const loadHistoricalData = useCallback(async () => {
     const supabase = createClient();
     
