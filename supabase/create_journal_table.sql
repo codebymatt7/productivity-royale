@@ -20,12 +20,17 @@ CREATE INDEX IF NOT EXISTS idx_journal_logs_user_date ON public.journal_logs(use
 -- RLS Policies
 ALTER TABLE public.journal_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can read own journal logs" ON public.journal_logs
+-- Drop policies if they exist, then create them
+DROP POLICY IF EXISTS "Users can read own journal logs" ON public.journal_logs;
+DROP POLICY IF EXISTS "Users can insert own journal logs" ON public.journal_logs;
+DROP POLICY IF EXISTS "Users can update own journal logs" ON public.journal_logs;
+
+CREATE POLICY "Users can read own journal logs" ON public.journal_logs
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Users can insert own journal logs" ON public.journal_logs
+CREATE POLICY "Users can insert own journal logs" ON public.journal_logs
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY IF NOT EXISTS "Users can update own journal logs" ON public.journal_logs
+CREATE POLICY "Users can update own journal logs" ON public.journal_logs
   FOR UPDATE USING (auth.uid() = user_id);
 
