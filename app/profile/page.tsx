@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, User as UserIcon, Calendar } from "lucide-react";
+import { ArrowLeft, Mail, User as UserIcon, Calendar, LogOut } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -20,6 +22,12 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth");
+  };
 
   useEffect(() => {
     async function loadProfile() {
@@ -125,7 +133,16 @@ export default function ProfilePage() {
         </Link>
 
         <div className="bg-dark-card border border-dark-border rounded-lg p-8">
-          <h1 className="text-3xl font-semibold text-white mb-8">Account Details</h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-semibold text-white">Account Details</h1>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors text-sm sm:text-base font-medium"
+            >
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Log Out</span>
+            </button>
+          </div>
 
           <div className="space-y-6">
             <div className="flex items-center gap-4 pb-6 border-b border-dark-border">

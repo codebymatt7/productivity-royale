@@ -46,6 +46,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
   const [animating, setAnimating] = useState<string | null>(null);
   const [confettiTrigger, setConfettiTrigger] = useState<string | null>(null);
   const [today, setToday] = useState(getTodayDateString());
+  const [dailyAffirmation, setDailyAffirmation] = useState<string>("");
 
   useEffect(() => {
     const checkDate = () => {
@@ -62,6 +63,22 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
 
     async function loadTodayLogs() {
       const supabase = createClient();
+      
+      // Load daily affirmation
+      const { data: journalData } = await supabase
+        .from("journal_logs")
+        .select("morning_intention")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .maybeSingle();
+      
+      if (journalData?.morning_intention) {
+        setDailyAffirmation(journalData.morning_intention);
+      } else {
+        setDailyAffirmation("");
+      }
+      
+      // Load habit logs
       const { data } = await supabase
         .from("logs")
         .select("category, value, points")
@@ -287,11 +304,23 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     <div className="p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 text-white">Daily Habits</h2>
       
+      {/* Daily Affirmation Display */}
+      {dailyAffirmation && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl"
+        >
+          <div className="text-xs sm:text-sm text-blue-300 mb-1 font-medium">Today&apos;s Affirmation</div>
+          <div className="text-sm sm:text-base text-white italic">&quot;{dailyAffirmation}&quot;</div>
+        </motion.div>
+      )}
+      
       {/* Daily Progress Bar */}
       <DailyProgressBar userId={userId} />
       
-      {/* 2-Column Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* 2-Column Grid - Always 2 columns for compact mobile layout */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {quests.map((quest) => {
           const isCompleted = todayCompleted.has(quest.category);
           const currentValue = values.get(quest.category) || 0;
@@ -303,7 +332,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
             <motion.div
               key={quest.category}
               whileHover={!isCompleted ? { scale: 1.02, y: -2 } : {}}
-              className={`rounded-2xl p-4 sm:p-6 flex flex-col transition-all relative overflow-hidden ${
+              className={`rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 flex flex-col transition-all relative overflow-hidden ${
                 getColorClasses(quest.color, isCompleted)
               }`}
             >
@@ -314,15 +343,15 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
               )}
 
               {/* Icon and Title */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-xl sm:text-2xl`}>
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-lg sm:text-xl md:text-2xl`}>
                   {quest.icon}
                 </div>
-                <div>
-                  <div className={`text-base sm:text-lg font-semibold ${isCompleted ? "text-white" : "text-white"}`}>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm sm:text-base md:text-lg font-semibold ${isCompleted ? "text-white" : "text-white"} truncate`}>
                     {quest.name}
                   </div>
-                  <div className={`text-xs sm:text-sm ${isCompleted ? "text-white/80" : "text-gray-400"}`}>
+                  <div className={`text-xs ${isCompleted ? "text-white/80" : "text-gray-400"} line-clamp-1`}>
                     {quest.goal}
                   </div>
                 </div>

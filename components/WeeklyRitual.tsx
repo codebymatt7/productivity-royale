@@ -198,12 +198,33 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     setLifeChartData(calculateLifeChart(screenTimeNum));
     setWealthChartData(calculateWealthChart(spendingNum));
 
-    const wealthDestroyed = calculateWealthDestroyed(spendingNum);
-    const lifeWasted = calculateLifeWasted(screenTimeNum);
+    // Screen time scoring: Baseline 3 hours
+    // 2 hours = good (gives points)
+    // Below 3 = plus points, above 3 = minus points
+    let screenTimePoints = 0;
+    if (screenTimeNum <= 2) {
+      // Excellent - 2 hours or less
+      screenTimePoints = 15;
+    } else if (screenTimeNum < 3) {
+      // Good - between 2 and 3 hours
+      screenTimePoints = 10;
+    } else if (screenTimeNum <= 4) {
+      // Slightly over baseline
+      screenTimePoints = -5;
+    } else if (screenTimeNum <= 6) {
+      // Moderate overuse
+      screenTimePoints = -15;
+    } else {
+      // Heavy overuse
+      screenTimePoints = -25;
+    }
 
-    const wealthPenalty = Math.floor(wealthDestroyed / 100);
-    const lifePenalty = Math.floor(lifeWasted * 10);
-    const totalPenalty = -(wealthPenalty + lifePenalty);
+    // Spending: Very little impact (minimal points, almost neutral)
+    const spendingPoints = Math.floor(spendingNum / 5000); // 1 point per $5000, very minimal
+
+    // Total: Good screen time gives points, bad screen time takes points
+    // Spending has minimal impact
+    const totalPoints = screenTimePoints - spendingPoints;
 
     const supabase = createClient();
     const weekSunday = getWeekSundayString(selectedWeek);
@@ -255,7 +276,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     const { error } = await supabase.from("logs").insert({
       user_id: userId,
       activity_name: weeklyData,
-      points: totalPenalty,
+      points: totalPoints,
       category: "weekly",
       log_date: weekSunday, // Store with week's Sunday date
     });

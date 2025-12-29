@@ -157,27 +157,21 @@ export default function Home() {
             Level <span className="text-blue-400 font-semibold text-base sm:text-lg">{lifetimeLevel}</span>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             <Link
               href="/profile"
-              className="text-gray-400 hover:text-white text-xs sm:text-sm transition-colors"
+              className="p-2 sm:p-3 text-gray-400 hover:text-white transition-colors"
             >
-              <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
             </Link>
-            <button
-              onClick={handleLogout}
-              className="px-2 py-1 bg-dark-bg border border-dark-border text-gray-400 hover:text-white rounded text-xs sm:text-sm transition-colors"
-            >
-              <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
-            </button>
           </div>
         </div>
         
-        {/* Tabs - Compact */}
+        {/* Tabs - Larger text */}
         <div className="flex gap-0.5 px-2 sm:px-4">
           <button
             onClick={() => setActiveTab("daily")}
-            className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "daily"
                 ? "text-blue-400 border-b-2 border-blue-400"
                 : "text-gray-400 hover:text-gray-300"
@@ -187,7 +181,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab("weekly")}
-            className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "weekly"
                 ? "text-green-400 border-b-2 border-green-400"
                 : "text-gray-400 hover:text-gray-300"
@@ -197,7 +191,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab("arena")}
-            className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "arena"
                 ? "text-purple-400 border-b-2 border-purple-400"
                 : "text-gray-400 hover:text-gray-300"
@@ -207,7 +201,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition-colors ${
               activeTab === "history"
                 ? "text-cyan-400 border-b-2 border-cyan-400"
                 : "text-gray-400 hover:text-gray-300"
