@@ -92,36 +92,48 @@ export default function Leaderboard() {
       }
       
       // Create a map of user_id -> stats for quick lookup
-      const statsMap = new Map<string, number>();
+      const statsMap = new Map<string, { points: number; stats: any }>();
       if (allStats) {
         allStats.forEach(stat => {
           // Ensure we're using the actual total_points value, not null/undefined
           const points = stat.total_points !== null && stat.total_points !== undefined 
             ? Number(stat.total_points) 
             : 0;
-          statsMap.set(stat.user_id, points);
-          console.log(`Mapped user ${stat.user_id} to ${points} points`);
+          statsMap.set(stat.user_id, {
+            points: points,
+            stats: stat
+          });
+          console.log(`📌 Mapped user ${stat.user_id.substring(0, 8)}... to ${points} points (raw: ${stat.total_points})`);
         });
+      } else {
+        console.warn("⚠️ No stats in map - all users will show 0 points");
       }
       
       // Combine users with their stats (default to 0 if no stats)
       const combinedStats: any[] = [];
       if (allUsers && allUsers.length > 0) {
         allUsers.forEach(user => {
-          const userPoints = statsMap.get(user.id) ?? 0;
+          const statsEntry = statsMap.get(user.id);
+          const userPoints = statsEntry?.points ?? 0;
+          const userStats = statsEntry?.stats ?? null;
+          
           combinedStats.push({
             user_id: user.id,
             total_points: userPoints,
+            strength: userStats?.strength ?? 0,
+            intelligence: userStats?.intelligence ?? 0,
+            charisma: userStats?.charisma ?? 0,
+            willpower: userStats?.willpower ?? 0,
             users: {
               id: user.id,
               username: user.username,
               display_name: user.display_name
             }
           });
-          console.log(`Combined: ${user.username || user.display_name} (${user.id}) = ${userPoints} points`);
+          console.log(`🔗 Combined: ${user.username || user.display_name || 'no name'} = ${userPoints} points (from stats: ${statsEntry ? 'yes' : 'no'})`);
         });
       } else {
-        console.warn("No users found! This might be an RLS issue.");
+        console.warn("⚠️ No users found! This might be an RLS issue.");
       }
       
       // Sort by total_points descending
