@@ -162,23 +162,26 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         return value * 6;
       }
     } else if (quest.type === "sleep") {
-      // Tiered sleep scoring:
-      // 8 hours = Optimal (30 pts)
-      // 9 hours = Better (35 pts)
-      // 7 hours = Slight gain (10 pts) or no effect (0 pts) - let's do slight gain
-      // 10-11 hours = Tapering (15 pts, then 10 pts)
+      // Tiered sleep scoring with decimal support:
+      // 8 hours (±0.5) = Optimal (30 pts)
+      // 9 hours (±0.5) = Better (35 pts)
+      // 7 hours (±0.5) = Slight gain (10 pts)
+      // 10 hours (±0.5) = Tapering (15 pts)
+      // 11 hours (±0.5) = Tapering (10 pts)
       // 12+ hours = Tapering more (5 pts)
       // <7 hours = Tiered penalties (greater as it goes down)
-      if (value === 8) {
-        return 30; // Optimal
-      } else if (value === 9) {
-        return 35; // Better
-      } else if (value === 7) {
-        return 10; // Slight gain
-      } else if (value === 10) {
-        return 15; // Tapering
-      } else if (value === 11) {
-        return 10; // Tapering more
+      
+      // Use range checks to support decimals (e.g., 7.5, 8.5)
+      if (Math.abs(value - 8) <= 0.5) {
+        return 30; // Optimal (7.5 - 8.5)
+      } else if (Math.abs(value - 9) <= 0.5) {
+        return 35; // Better (8.5 - 9.5)
+      } else if (Math.abs(value - 7) <= 0.5) {
+        return 10; // Slight gain (6.5 - 7.5)
+      } else if (Math.abs(value - 10) <= 0.5) {
+        return 15; // Tapering (9.5 - 10.5)
+      } else if (Math.abs(value - 11) <= 0.5) {
+        return 10; // Tapering more (10.5 - 11.5)
       } else if (value >= 12) {
         return 5; // Tapering significantly
       } else if (value >= 6 && value < 7) {
@@ -190,6 +193,8 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       } else if (value < 4) {
         return -40; // Severe penalty
       }
+      // If between 7.5-8.5, 8.5-9.5, etc. but not matching above, return 0
+      return 0;
     }
     return 0;
   };
