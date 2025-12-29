@@ -163,7 +163,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     if (allLogs && allLogs.length > 0) {
       // Group by log_date to handle duplicates (take the most recent entry per week)
-      const weekMap = new Map<string, { week: string; screenTime: number; spending: number; created_at: string }>();
+      const weekMap = new Map<string, { week: string; screenTime: number; spending: number; log_date: string; created_at: string }>();
       
       allLogs.forEach((log) => {
         try {
@@ -178,6 +178,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
               week: weekDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
               screenTime: weeklyData.screen_time || 0,
               spending: weeklyData.spending || 0,
+              log_date: log.log_date,
               created_at: log.created_at || "",
             });
           }
@@ -186,14 +187,15 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         }
       });
       
-      // Convert map to array and sort by week date
+      // Convert map to array and sort by original log_date (not the formatted string)
       const historicalData = Array.from(weekMap.values())
         .map(({ week, screenTime, spending }) => ({ week, screenTime, spending }))
         .sort((a, b) => {
-          // Sort by week date (parse the date string)
-          const dateA = new Date(a.week);
-          const dateB = new Date(b.week);
-          return dateA.getTime() - dateB.getTime();
+          // Get the original dates from the map for sorting
+          const entryA = Array.from(weekMap.values()).find(e => e.week === a.week);
+          const entryB = Array.from(weekMap.values()).find(e => e.week === b.week);
+          if (!entryA || !entryB) return 0;
+          return new Date(entryA.log_date).getTime() - new Date(entryB.log_date).getTime();
         });
 
       setHistoricalChartData(historicalData);
