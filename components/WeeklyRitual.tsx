@@ -193,16 +193,25 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     const supabase = createClient();
     const weekSunday = getWeekSundayString(selectedWeek);
     
-    // Ensure user exists
+    // Ensure user exists (create if needed)
     const { data: userCheck } = await supabase
       .from("users")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (!userCheck) {
-      alert("User profile not found. Please refresh the page.");
-      return;
+      // Try to create user profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: createError } = await supabase.from("users").insert({
+          id: user.id,
+          username: user.email?.split("@")[0] || "Hero",
+        });
+        if (createError && !createError.message.includes("duplicate")) {
+          console.error("Error creating user:", createError);
+        }
+      }
     }
     
     const weeklyData = JSON.stringify({

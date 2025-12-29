@@ -164,17 +164,31 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     const supabase = createClient();
     const currentToday = getTodayDateString();
     
-    // First, ensure user exists in users table
-    const { data: userCheck } = await supabase
+    // Ensure user exists in users table (create if needed)
+    const { data: userCheck, error: userCheckError } = await supabase
       .from("users")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
-    if (!userCheck) {
-      alert("User profile not found. Please refresh the page.");
-      console.error("User profile missing for userId:", userId);
-      return;
+    if (!userCheck && !userCheckError) {
+      // User doesn't exist, try to create it
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: createError } = await supabase.from("users").insert({
+          id: user.id,
+          username: user.email?.split("@")[0] || "Hero",
+        });
+        
+        if (createError && !createError.message.includes("duplicate")) {
+          console.error("Error creating user profile:", createError);
+          alert("Failed to create user profile. Please refresh the page.");
+          return;
+        }
+      } else {
+        alert("Please log in again.");
+        return;
+      }
     }
     
     // Check if log already exists
@@ -184,7 +198,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       .eq("user_id", userId)
       .eq("category", quest.category)
       .eq("log_date", currentToday)
-      .single();
+      .maybeSingle();
 
     let error;
     if (existingLog) {

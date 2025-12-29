@@ -48,17 +48,25 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
     setIsSaving(true);
     const supabase = createClient();
 
-    // Ensure user exists
+    // Ensure user exists (create if needed)
     const { data: userCheck } = await supabase
       .from("users")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (!userCheck) {
-      alert("User profile not found. Please refresh the page.");
-      setIsSaving(false);
-      return;
+      // Try to create user profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: createError } = await supabase.from("users").insert({
+          id: user.id,
+          username: user.email?.split("@")[0] || "Hero",
+        });
+        if (createError && !createError.message.includes("duplicate")) {
+          console.error("Error creating user:", createError);
+        }
+      }
     }
 
     // Check if entry exists
@@ -67,7 +75,7 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
       .select("id")
       .eq("user_id", userId)
       .eq("date", today)
-      .single();
+      .maybeSingle();
 
     let error;
     if (existingEntry) {
@@ -108,17 +116,25 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
     setIsSaving(true);
     const supabase = createClient();
 
-    // Ensure user exists
+    // Ensure user exists (create if needed)
     const { data: userCheck } = await supabase
       .from("users")
       .select("id")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (!userCheck) {
-      alert("User profile not found. Please refresh the page.");
-      setIsSaving(false);
-      return;
+      // Try to create user profile
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: createError } = await supabase.from("users").insert({
+          id: user.id,
+          username: user.email?.split("@")[0] || "Hero",
+        });
+        if (createError && !createError.message.includes("duplicate")) {
+          console.error("Error creating user:", createError);
+        }
+      }
     }
 
     // Check if entry exists
@@ -127,7 +143,7 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
       .select("id")
       .eq("user_id", userId)
       .eq("date", today)
-      .single();
+      .maybeSingle();
 
     let error;
     if (existingEntry) {
