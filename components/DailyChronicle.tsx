@@ -16,6 +16,8 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
   const [affirmationSaved, setAffirmationSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isEditingAffirmation, setIsEditingAffirmation] = useState(false);
+  const [isEditingReflection, setIsEditingReflection] = useState(false);
   const today = getTodayDateString();
 
   useEffect(() => {
@@ -193,7 +195,7 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
             value={affirmation}
             onChange={(e) => setAffirmation(e.target.value)}
             placeholder="What is your main quest today?"
-            disabled={affirmationSaved}
+            disabled={affirmationSaved && !isEditingDisplayName}
             className="w-full h-32 sm:h-40 px-4 py-3 bg-[#1a1f2e] border border-dark-border rounded-xl text-white font-mono text-sm focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
@@ -219,9 +221,50 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
               )}
             </motion.button>
           )}
-          {affirmationSaved && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-green-400">
-              <span>✓ Affirmation saved</span>
+          {affirmationSaved && !isEditingAffirmation && (
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-green-400">
+                <span>✓ Affirmation saved</span>
+              </div>
+              <button
+                onClick={() => setIsEditingAffirmation(true)}
+                className="px-3 py-1 text-xs bg-dark-bg border border-dark-border text-gray-400 rounded hover:bg-dark-card transition-colors"
+              >
+                Edit
+              </button>
+            </div>
+          )}
+          {isEditingAffirmation && (
+            <div className="mt-3 flex gap-2">
+              <motion.button
+                onClick={async () => {
+                  await handleSaveAffirmation();
+                  setIsEditingAffirmation(false);
+                }}
+                disabled={isSaving}
+                className="flex-1 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                Save
+              </motion.button>
+              <button
+                onClick={() => {
+                  setIsEditingAffirmation(false);
+                  // Reload original
+                  const supabase = createClient();
+                  supabase
+                    .from("journal_logs")
+                    .select("morning_intention")
+                    .eq("user_id", userId)
+                    .eq("date", today)
+                    .maybeSingle()
+                    .then(({ data }) => {
+                      if (data) setAffirmation(data.morning_intention || "");
+                    });
+                }}
+                className="px-3 py-2 bg-dark-bg border border-dark-border text-gray-400 text-xs rounded hover:bg-dark-card transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           )}
         </div>
@@ -240,29 +283,80 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
               value={eveningReflection}
               onChange={(e) => setEveningReflection(e.target.value)}
               placeholder="Reflect on your day..."
-              className="w-full h-32 sm:h-40 px-4 py-3 bg-[#1a1f2e] border border-dark-border rounded-xl text-white font-mono text-sm focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none"
+              disabled={eveningReflection.trim() !== "" && !isEditingReflection}
+              className="w-full h-32 sm:h-40 px-4 py-3 bg-[#1a1f2e] border border-dark-border rounded-xl text-white font-mono text-sm focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
               }}
             />
-            <motion.button
-              onClick={handleSaveReflection}
-              disabled={isSaving || saved || !eveningReflection.trim()}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="mt-3 w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {saved ? (
-                <>
-                  <span>Saved ✓</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>{isSaving ? "Saving..." : "Save Reflection"}</span>
-                </>
-              )}
-            </motion.button>
+            {eveningReflection.trim() && !isEditingReflection ? (
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-green-400">
+                  <span>✓ Reflection saved</span>
+                </div>
+                <button
+                  onClick={() => setIsEditingReflection(true)}
+                  className="px-3 py-1 text-xs bg-dark-bg border border-dark-border text-gray-400 rounded hover:bg-dark-card transition-colors"
+                >
+                  Edit
+                </button>
+              </div>
+            ) : (
+              <motion.button
+                onClick={async () => {
+                  await handleSaveReflection();
+                  setIsEditingReflection(false);
+                }}
+                disabled={isSaving || saved || !eveningReflection.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="mt-3 w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saved ? (
+                  <>
+                    <span>Saved ✓</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{isSaving ? "Saving..." : "Save Reflection"}</span>
+                  </>
+                )}
+              </motion.button>
+            )}
+            {isEditingReflection && (
+              <div className="mt-3 flex gap-2">
+                <motion.button
+                  onClick={async () => {
+                    await handleSaveReflection();
+                    setIsEditingReflection(false);
+                  }}
+                  disabled={isSaving}
+                  className="flex-1 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition-colors disabled:opacity-50"
+                >
+                  Save
+                </motion.button>
+                <button
+                  onClick={() => {
+                    setIsEditingReflection(false);
+                    // Reload original
+                    const supabase = createClient();
+                    supabase
+                      .from("journal_logs")
+                      .select("evening_reflection")
+                      .eq("user_id", userId)
+                      .eq("date", today)
+                      .maybeSingle()
+                      .then(({ data }) => {
+                        if (data) setEveningReflection(data.evening_reflection || "");
+                      });
+                  }}
+                  className="px-3 py-2 bg-dark-bg border border-dark-border text-gray-400 text-xs rounded hover:bg-dark-card transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </motion.div>
         ) : (
           <div className="opacity-50 border border-dark-border rounded-xl p-4 bg-[#1a1f2e]/30">

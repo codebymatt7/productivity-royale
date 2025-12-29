@@ -307,22 +307,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       week_start: weekSunday,
     });
     
-    // Delete existing weekly log for this week if it exists
-    const { data: existingLogs } = await supabase
-      .from("logs")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("category", "weekly")
-      .gte("log_date", weekSunday)
-      .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0]);
-
-    if (existingLogs && existingLogs.length > 0) {
-      for (const log of existingLogs) {
-        await supabase.from("logs").delete().eq("id", log.id);
-      }
-    }
-    
-    // Check if already submitted for this week (double-check)
+    // Check if already submitted for this week FIRST (before deleting)
     const { data: existingCheck } = await supabase
       .from("logs")
       .select("id")
@@ -336,6 +321,23 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       setHasSubmittedThisWeek(true);
       loadWeekData();
       return;
+    }
+
+    // Delete existing weekly log for this week if it exists (for past weeks, allow editing)
+    if (!isOnCurrentWeek || !existingCheck) {
+      const { data: existingLogs } = await supabase
+        .from("logs")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("category", "weekly")
+        .gte("log_date", weekSunday)
+        .lte("log_date", getWeekSaturday(selectedWeek).toISOString().split('T')[0]);
+
+      if (existingLogs && existingLogs.length > 0) {
+        for (const log of existingLogs) {
+          await supabase.from("logs").delete().eq("id", log.id);
+        }
+      }
     }
 
     const { error } = await supabase.from("logs").insert({
@@ -435,7 +437,39 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Form Section or Countdown */}
         <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
-          {hasSubmittedThisWeek && isOnCurrentWeek ? (
+          {/* Future week - show only timer */}
+          {!isOnCurrentWeek && selectedWeekSunday.getTime() > currentWeekSunday.getTime() ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center space-y-6"
+            >
+              <div className="text-4xl mb-4">⏰</div>
+              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">
+                Future Week
+              </h3>
+              <p className="text-gray-400 mb-6">
+                This week hasn&apos;t started yet.
+              </p>
+              <div className="bg-dark-bg border border-dark-border rounded-xl p-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <span className="text-sm text-gray-400">Time until this check-in:</span>
+                </div>
+                <div className="text-3xl sm:text-4xl font-bold text-blue-400 font-mono">
+                  {(() => {
+                    const diff = selectedWeekSunday.getTime() - today.getTime();
+                    if (diff <= 0) return "Available now";
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+                  })()}
+                </div>
+              </div>
+            </motion.div>
+          ) : hasSubmittedThisWeek && isOnCurrentWeek ? (
             // Show countdown timer after submission
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}

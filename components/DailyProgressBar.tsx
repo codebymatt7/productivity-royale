@@ -22,10 +22,11 @@ export default function DailyProgressBar({ userId }: DailyProgressBarProps) {
       const supabase = createClient();
       const { data } = await supabase
         .from("logs")
-        .select("points")
+        .select("points, value")
         .eq("user_id", userId)
         .eq("log_date", today)
-        .neq("category", "penalty");
+        .neq("category", "penalty")
+        .neq("category", "weekly");
 
       if (data) {
         const total = data.reduce((sum, log) => sum + log.points, 0);

@@ -9,8 +9,11 @@ import Link from "next/link";
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [createdAt, setCreatedAt] = useState<string>("");
+  const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [stats, setStats] = useState({
     total_points: 0,
     strength: 0,
@@ -168,6 +171,78 @@ export default function ProfilePage() {
                   Username
                 </label>
                 <div className="text-white">{username}</div>
+                <p className="text-xs text-gray-500">Used for login (cannot be changed)</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400 flex items-center gap-2">
+                  <UserIcon className="w-4 h-4" />
+                  Display Name
+                </label>
+                {isEditingDisplayName ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-blue-500"
+                      placeholder="Your display name"
+                      maxLength={30}
+                      disabled={savingDisplayName}
+                    />
+                    <button
+                      onClick={async () => {
+                        setSavingDisplayName(true);
+                        const supabase = createClient();
+                        const { error } = await supabase
+                          .from("users")
+                          .update({ display_name: displayName.trim() || username })
+                          .eq("id", userId);
+                        if (error) {
+                          alert("Failed to update display name: " + error.message);
+                        } else {
+                          setIsEditingDisplayName(false);
+                        }
+                        setSavingDisplayName(false);
+                      }}
+                      disabled={savingDisplayName}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {savingDisplayName ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingDisplayName(false);
+                        // Reload original value
+                        const supabase = createClient();
+                        supabase
+                          .from("users")
+                          .select("display_name, username")
+                          .eq("id", userId)
+                          .single()
+                          .then(({ data }) => {
+                            if (data) {
+                              setDisplayName(data.display_name || data.username || "");
+                            }
+                          });
+                      }}
+                      className="px-4 py-2 bg-dark-bg border border-dark-border text-gray-400 rounded hover:bg-dark-card transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="text-white">{displayName || username}</div>
+                    <button
+                      onClick={() => setIsEditingDisplayName(true)}
+                      className="px-3 py-1 text-xs bg-dark-bg border border-dark-border text-gray-400 rounded hover:bg-dark-card transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Shown on leaderboard</p>
               </div>
 
               <div className="space-y-2">

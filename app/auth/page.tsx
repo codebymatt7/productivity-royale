@@ -9,6 +9,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -179,18 +180,35 @@ export default function AuthPage() {
 
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-gray-500"
-                placeholder="Choose your hero name"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Username <span className="text-xs text-gray-500">(for login)</span>
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-gray-500"
+                  placeholder="Choose your username"
+                />
+                <p className="text-xs text-gray-500 mt-1">Letters, numbers, underscores, and hyphens only</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Display Name <span className="text-xs text-gray-500">(shown on leaderboard)</span>
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded text-white focus:outline-none focus:border-gray-500"
+                  placeholder="Your hero name (e.g., Chad Thundercock)"
+                  maxLength={30}
+                />
+                <p className="text-xs text-gray-500 mt-1">This is how others will see you on the leaderboard</p>
+              </div>
+            </>
           )}
 
           <div>

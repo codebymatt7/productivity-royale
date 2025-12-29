@@ -342,7 +342,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
             <motion.div
               key={quest.category}
               whileHover={!isCompleted ? { scale: 1.02, y: -2 } : {}}
-              className={`rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 flex flex-col transition-all relative overflow-hidden ${
+              className={`rounded-xl p-2.5 sm:p-3 flex flex-col transition-all relative overflow-hidden min-h-[140px] ${
                 getColorClasses(quest.color, isCompleted)
               }`}
             >
@@ -353,15 +353,15 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
               )}
 
               {/* Icon and Title */}
-              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-lg sm:text-xl md:text-2xl`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`${isCompleted ? "text-white" : "text-gray-400"} text-base sm:text-lg`}>
                   {quest.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className={`text-sm sm:text-base md:text-lg font-semibold ${isCompleted ? "text-white" : "text-white"} truncate`}>
+                  <div className={`text-xs sm:text-sm font-semibold ${isCompleted ? "text-white" : "text-white"} truncate`}>
                     {quest.name}
                   </div>
-                  <div className={`text-xs ${isCompleted ? "text-white/80" : "text-gray-400"} line-clamp-1`}>
+                  <div className={`text-[10px] sm:text-xs ${isCompleted ? "text-white/80" : "text-gray-400"} line-clamp-1`}>
                     {quest.goal}
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                       ? { scale: [0.9, 1.1, 1] }
                       : {}
                   }
-                  className={`mt-auto py-3 rounded-xl font-semibold transition-all ${
+                  className={`mt-auto py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                     isCompleted
                       ? "bg-white/20 text-white"
                       : "bg-white/10 hover:bg-white/20 text-white"
@@ -394,16 +394,16 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                   )}
                 </motion.button>
               ) : quest.type === "number" ? (
-                <div className="mt-auto space-y-3">
-                  <div className="flex items-center gap-2">
+                <div className="mt-auto space-y-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
                         const newValue = Math.max(0, currentValue - 1);
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
-                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                      className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
                     >
-                      <Minus className="w-4 h-4" />
+                      <Minus className="w-3 h-3" />
                     </button>
                     <input
                       type="number"
@@ -412,7 +412,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                         const val = parseInt(e.target.value) || 0;
                         setValues(new Map(values).set(quest.category, val));
                       }}
-                      className="flex-1 px-3 py-2 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-lg font-semibold focus:outline-none transition-colors"
+                      className="flex-1 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
                       placeholder="0"
                       min="0"
                     />
@@ -421,9 +421,9 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                         const newValue = currentValue + 1;
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
-                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                      className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-3 h-3" />
                     </button>
                   </div>
                   {currentValue > 0 && (
@@ -441,18 +441,18 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={currentValue <= 0}
-                    className={`w-full py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                    className={`w-full py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                       currentValue > 0
                         ? "bg-white/20 hover:bg-white/30 text-white"
                         : "bg-white/5 text-white/40 cursor-not-allowed"
                     }`}
                   >
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>Save</span>
                   </motion.button>
                 </div>
               ) : quest.type === "sleep" ? (
-                <div className="mt-auto space-y-3">
+                <div className="mt-auto space-y-2">
                   <input
                     type="number"
                     value={currentValue || ""}
@@ -460,14 +460,14 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                       const val = parseFloat(e.target.value) || 0;
                       setValues(new Map(values).set(quest.category, val));
                     }}
-                    className="w-full px-3 py-2 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-lg font-semibold focus:outline-none transition-colors"
+                    className="w-full px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
                     placeholder="Hours"
                     min="0"
                     max="24"
                     step="0.5"
                   />
                   {currentValue > 0 && (
-                    <div className={`text-xs text-center font-medium ${getStatusColor(quest, currentValue)}`}>
+                    <div className={`text-[10px] sm:text-xs text-center font-medium ${getStatusColor(quest, currentValue)}`}>
                       {currentValue === 8
                         ? "✓ Optimal Sleep (+30 pts)"
                         : currentValue === 9
@@ -496,13 +496,13 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={currentValue <= 0}
-                    className={`w-full py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                    className={`w-full py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                       currentValue > 0
                         ? "bg-white/20 hover:bg-white/30 text-white"
                         : "bg-white/5 text-white/40 cursor-not-allowed"
                     }`}
                   >
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>Save</span>
                   </motion.button>
                 </div>

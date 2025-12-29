@@ -44,7 +44,7 @@ export default function Leaderboard() {
         .select(`
           total_points,
           user_id,
-          users!inner(id, username)
+          users!inner(id, username, display_name)
         `)
         .order("total_points", { ascending: false })
         .limit(10);
@@ -57,17 +57,17 @@ export default function Leaderboard() {
       if (stats && stats.length > 0) {
         // Build entries
         stats.forEach((stat, index) => {
-          const totalPoints = stat.total_points || 0;
-          const level = Math.floor(totalPoints / 100);
+          const totalPoints = Math.max(0, stat.total_points || 0); // Don't allow negative points for level calculation
+          const level = Math.max(1, Math.floor(totalPoints / 100)); // Level can never be negative
           let tier: "King" | "Squire" | "Peasant" = "Peasant";
           if (totalPoints >= 1000) tier = "King";
           else if (totalPoints >= 500) tier = "Squire";
 
           const userData = stat.users as any;
-          const username = userData?.username || "Unknown";
+          const displayName = userData?.display_name || userData?.username || "Unknown";
 
           const entry: LeaderboardEntry = {
-            username,
+            username: displayName, // Use display_name for leaderboard display
             total_points: totalPoints,
             rank: index + 1,
             level,
