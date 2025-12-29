@@ -38,23 +38,7 @@ export default function Leaderboard() {
         setCurrentUserId(user.id);
       }
 
-      // Query character_stats with user info - this will get all users who have stats
-      // Then we'll also query users table to get any users without stats
-      let { data: stats, error: statsError } = await supabase
-        .from("character_stats")
-        .select(`
-          total_points,
-          user_id,
-          users!inner(id, username, display_name)
-        `)
-        .order("total_points", { ascending: false })
-        .limit(50);
-      
-      if (statsError) {
-        console.error("Error loading leaderboard stats:", statsError);
-      }
-      
-      // Also get all users to ensure we see everyone
+      // Get all users first
       const { data: allUsers, error: usersError } = await supabase
         .from("users")
         .select("id, username, display_name")
@@ -64,37 +48,44 @@ export default function Leaderboard() {
         console.error("Error loading users:", usersError);
       }
       
-      // Combine: start with users who have stats, then add users without stats
+      // Get all character_stats
+      const { data: allStats, error: statsError } = await supabase
+        .from("character_stats")
+        .select("user_id, total_points")
+        .limit(50);
+      
+      if (statsError) {
+        console.error("Error loading stats:", statsError);
+      }
+      
+      // Create a map of user_id -> stats for quick lookup
       const statsMap = new Map();
-      if (stats) {
-        stats.forEach(stat => {
-          statsMap.set(stat.user_id, {
-            user_id: stat.user_id,
-            total_points: stat.total_points ?? 0,
-            users: stat.users
+      if (allStats) {
+        allStats.forEach(stat => {
+          statsMap.set(stat.user_id, stat.total_points ?? 0);
+        });
+      }
+      
+      // Combine users with their stats (default to 0 if no stats)
+      const combinedStats: any[] = [];
+      if (allUsers) {
+        allUsers.forEach(user => {
+          combinedStats.push({
+            user_id: user.id,
+            total_points: statsMap.get(user.id) ?? 0,
+            users: {
+              id: user.id,
+              username: user.username,
+              display_name: user.display_name
+            }
           });
         });
       }
       
-      // Add users without stats (default to 0 points)
-      if (allUsers) {
-        allUsers.forEach(user => {
-          if (!statsMap.has(user.id)) {
-            statsMap.set(user.id, {
-              user_id: user.id,
-              total_points: 0,
-              users: {
-                id: user.id,
-                username: user.username,
-                display_name: user.display_name
-              }
-            });
-          }
-        });
-      }
+      // Sort by total_points descending
+      combinedStats.sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
       
-      // Convert map to array and sort
-      stats = Array.from(statsMap.values()).sort((a, b) => (b.total_points ?? 0) - (a.total_points ?? 0));
+      const stats = combinedStats;
 
       // Debug: Log what we got
       if (stats) {

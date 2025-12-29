@@ -255,32 +255,22 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       console.log("Deleting log:", logToDelete.id, "Category:", quest.category, "Points:", logToDelete.points);
       
       // Delete the log (trigger will handle point subtraction)
-      const { data: deletedData, error: deleteError } = await supabase
+      const { error: deleteError } = await supabase
         .from("logs")
         .delete()
-        .eq("id", logToDelete.id)
-        .select(); // Return deleted row to verify
+        .eq("id", logToDelete.id);
       
       if (deleteError) {
         console.error("Error deleting log:", deleteError);
-        alert(`Failed to uncomplete habit: ${deleteError.message}`);
+        alert(`Failed to uncomplete habit: ${deleteError.message}. Make sure you've run the DELETE policy migration in Supabase.`);
         isDeletingRef.current = false;
         recentlyDeletedRef.current.delete(quest.category);
         return;
       }
       
-      // Verify the delete actually worked
-      if (!deletedData || deletedData.length === 0) {
-        console.error("Delete returned no data - log may not have been deleted");
-        alert("Failed to uncomplete habit: Delete operation returned no data. Please try again.");
-        isDeletingRef.current = false;
-        recentlyDeletedRef.current.delete(quest.category);
-        return;
-      }
+      // Verify the delete worked by checking if the log still exists
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for DB to process
       
-      console.log("Log deleted successfully:", deletedData);
-      
-      // Double-check by querying if the log still exists
       const { data: verifyDelete } = await supabase
         .from("logs")
         .select("id")
@@ -289,7 +279,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       
       if (verifyDelete) {
         console.error("WARNING: Log still exists after delete! This may be an RLS issue.");
-        alert("Delete may have failed. Please refresh the page and try again.");
+        alert("Delete may have failed. Please make sure you've run the DELETE policy migration in Supabase SQL Editor.");
         isDeletingRef.current = false;
         recentlyDeletedRef.current.delete(quest.category);
         return;
