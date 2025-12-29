@@ -292,14 +292,13 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       newTodayCompleted.delete(quest.category);
       setTodayCompleted(newTodayCompleted);
       
-      // Clear the value for number/sleep inputs
+      // Keep the saved value in the input (don't reset to 0/8)
+      // We already saved savedValue above, so use it
       if (quest.type !== "binary") {
         const newValues = new Map(values);
-        if (quest.type === "sleep") {
-          newValues.set(quest.category, 8);
-        } else {
-          newValues.set(quest.category, 0);
-        }
+        // Use the saved value from the log (or default if not found)
+        const valueToKeep = savedValue !== null ? savedValue : (quest.type === "sleep" ? 8 : 0);
+        newValues.set(quest.category, valueToKeep);
         setValues(newValues);
       }
       
@@ -715,7 +714,12 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                       type="number"
                       value={currentValue > 0 ? currentValue : ""}
                       onChange={(e) => {
-                        const val = e.target.value === "" ? 8 : parseFloat(e.target.value);
+                        const inputVal = e.target.value;
+                        if (inputVal === "" || inputVal === ".") {
+                          // Allow empty or just a dot for decimal input
+                          return;
+                        }
+                        const val = parseFloat(inputVal);
                         if (!isNaN(val) && val >= 0 && val <= 24) {
                           setValues(new Map(values).set(quest.category, val));
                         }
@@ -724,7 +728,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                       placeholder="8"
                       min="0"
                       max="24"
-                      step="0.5"
+                      step="0.1"
                     />
                     <button
                       onClick={() => {
