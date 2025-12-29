@@ -95,17 +95,44 @@ export default function AuthPage() {
       }
 
       if (data.user) {
-        // Create user profile
-        const { error: profileError } = await supabase.from("users").insert({
-          id: data.user.id,
-          username: finalUsername,
-        });
+        // Create user profile - use upsert to handle race conditions
+        const { error: profileError } = await supabase
+          .from("users")
+          .upsert({
+            id: data.user.id,
+            username: finalUsername,
+          }, {
+            onConflict: 'id'
+          });
 
         if (profileError) {
           console.error("Profile creation error:", profileError);
-          setError(profileError.message || "Failed to create profile");
-          setLoading(false);
-          return;
+          // More helpful error message
+          if (profileError.message.includes("row-level security") || profileError.message.includes("RLS")) {
+            setError("Database configuration error. Please contact support or try again in a moment.");
+          } else if (profileError.message.includes("unique") || profileError.message.includes("duplicate")) {
+            // Username conflict, try with random suffix
+            const fallbackUsername = finalUsername + Math.floor(Math.random() * 10000);
+            const { error: retryError } = await supabase
+              .from("users")
+              .upsert({
+                id: data.user.id,
+                username: fallbackUsername,
+              }, {
+                onConflict: 'id'
+              });
+            if (retryError) {
+              setError("Failed to create profile. Please try signing in instead.");
+              setLoading(false);
+              return;
+            }
+          } else {
+            setError(profileError.message || "Failed to create profile. Please try again.");
+          }
+          if (profileError.message.includes("row-level security") || profileError.message.includes("RLS")) {
+            setLoading(false);
+            return;
+          }
         }
 
         // Initialize character stats
