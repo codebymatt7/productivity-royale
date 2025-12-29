@@ -106,13 +106,26 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         setCountdownTime(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+      } else if (isCurrentWeek && isLocked) {
+        // Current week but locked (not Sunday yet) - countdown to Sunday
+        const nextSunday = getNextSunday();
+        const diff = nextSunday.getTime() - today.getTime();
+        if (diff <= 0) {
+          setCountdownTime("Available now");
+          return;
+        }
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setCountdownTime(`${days}d ${hours}h ${minutes}m ${seconds}s`);
       }
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [selectedWeek, hasSubmittedThisWeek]);
+  }, [selectedWeek, hasSubmittedThisWeek, isLocked]);
 
   const loadHistoricalData = useCallback(async () => {
     const supabase = createClient();
