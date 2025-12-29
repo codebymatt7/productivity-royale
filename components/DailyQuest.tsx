@@ -101,7 +101,14 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         
         const valuesMap = new Map<string, number>();
         data.forEach((log) => {
-          valuesMap.set(log.category, log.value || 0);
+          // Convert to number, default to 8 for sleep, 0 for others
+          const numValue = Number(log.value);
+          if (log.category === "sleep") {
+            // Sleep defaults to 8 if no value or 0
+            valuesMap.set(log.category, (numValue > 0 && !isNaN(numValue)) ? numValue : 8);
+          } else {
+            valuesMap.set(log.category, numValue || 0);
+          }
         });
         setValues(valuesMap);
       }
@@ -197,7 +204,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           return;
         }
         
-        // Update local state
+        // Update local state immediately
         const newTodayCompleted = new Set(todayCompleted);
         newTodayCompleted.delete(quest.category);
         setTodayCompleted(newTodayCompleted);
@@ -205,9 +212,30 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         // Clear the value for number/sleep inputs
         if (quest.type !== "binary") {
           const newValues = new Map(values);
-          newValues.set(quest.category, 0);
+          newValues.set(quest.category, quest.type === "sleep" ? 8 : 0);
           setValues(newValues);
         }
+        
+        // Reload data to ensure sync
+        const supabase2 = createClient();
+        const { data: refreshedData } = await supabase2
+          .from("logs")
+          .select("category, value, points")
+          .eq("user_id", userId)
+          .eq("log_date", today);
+        
+        if (refreshedData) {
+          const refreshedSet = new Set(refreshedData.map((log) => log.category));
+          setTodayCompleted(refreshedSet);
+          
+          const refreshedValues = new Map<string, number>();
+          refreshedData.forEach((log) => {
+            refreshedValues.set(log.category, Number(log.value) || 0);
+          });
+          setValues(refreshedValues);
+        }
+      } else {
+        alert("No log found to delete. The habit may already be uncompleted.");
       }
       return;
     }
@@ -259,7 +287,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         .update({
           activity_name: quest.name,
           points: points,
-          value: inputValue,
+          value: quest.type === "sleep" ? parseFloat(inputValue.toString()) : Math.floor(Number(inputValue)),
         })
         .eq("id", existingLog.id);
 
@@ -274,7 +302,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
           points: points,
           category: quest.category,
           log_date: currentToday,
-          value: inputValue,
+          value: quest.type === "sleep" ? parseFloat(inputValue.toString()) : Math.floor(Number(inputValue)),
         });
 
       error = insertError;
@@ -406,7 +434,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 {isCompleted ? (
                   <div className="flex items-center justify-center gap-1">
                     <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span>Done</span>
+                    <span>Completed</span>
                   </div>
                 ) : (
                   "Complete"
@@ -457,15 +485,22 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
 
               {/* Number Input Section */}
               {isCompleted ? (
-                <motion.button
-                  onClick={() => handleSubmit(quest, currentValue)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="mt-auto py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white"
-                >
-                  <Check className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span>Completed</span>
-                </motion.button>
+                <div className="mt-auto space-y-2">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-white mb-1">
+                      {currentValue} {quest.category === "reading" ? "Pages" : "People"}
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={() => handleSubmit(quest, currentValue)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white"
+                  >
+                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>Completed</span>
+                  </motion.button>
+                </div>
               ) : (
                 <div className="mt-auto space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -570,13 +605,15 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                     </button>
                     <input
                       type="number"
-                      value={currentValue || ""}
+                      value={currentValue > 0 ? currentValue : ""}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setValues(new Map(values).set(quest.category, val));
+                        const val = e.target.value === "" ? 8 : parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0 && val <= 24) {
+                          setValues(new Map(values).set(quest.category, val));
+                        }
                       }}
                       className="flex-1 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
-                      placeholder="0"
+                      placeholder="8"
                       min="0"
                       max="24"
                       step="0.5"

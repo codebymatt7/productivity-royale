@@ -64,19 +64,24 @@ export default function Arena({ userId }: ArenaProps) {
   }, [userId]);
 
   useEffect(() => {
-    // Countdown timer - Fixed date: February 1st, 2025 at midnight UTC
-    const targetDate = new Date("2025-02-01T00:00:00Z");
+    // Countdown timer - Fixed date: February 1st, 2026 at midnight local time
+    const targetDate = new Date("2026-02-01T00:00:00");
 
     const updateTimer = () => {
       const now = new Date();
       const diff = targetDate.getTime() - now.getTime();
 
       if (diff > 0) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
         setTimeRemaining({
-          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((diff % (1000 * 60)) / 1000),
+          days,
+          hours,
+          minutes,
+          seconds,
         });
       } else {
         // Arena is open!
@@ -182,7 +187,7 @@ export default function Arena({ userId }: ArenaProps) {
             <div className="text-[10px] sm:text-xs text-gray-400">INT</div>
           </div>
           <div className="text-center p-2 sm:p-3 bg-dark-bg rounded-xl border border-dark-border">
-            <div className="text-lg sm:text-xl font-bold text-pink-400 mb-1">{stats.charisma}</div>
+            <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">{stats.charisma}</div>
             <div className="text-[10px] sm:text-xs text-gray-400">CHA</div>
           </div>
           <div className="text-center p-2 sm:p-3 bg-dark-bg rounded-xl border border-dark-border">

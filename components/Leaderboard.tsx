@@ -105,7 +105,7 @@ export default function Leaderboard() {
     }
 
     loadLeaderboard();
-    const interval = setInterval(loadLeaderboard, 10000);
+    const interval = setInterval(loadLeaderboard, 3000); // Update every 3 seconds for live updates
     return () => clearInterval(interval);
   }, []);
 

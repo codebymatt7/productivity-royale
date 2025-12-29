@@ -146,48 +146,29 @@ export default function History({ userId }: HistoryProps) {
                 transition={{ delay: index * 0.03 }}
                 className="bg-dark-card border border-dark-border rounded-xl sm:rounded-2xl overflow-hidden"
               >
-                {/* Header - Always visible */}
+                {/* Header - Always visible - Just date and points */}
                 <button
                   onClick={() => toggleExpand(entry.date)}
-                  className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-dark-bg/50 transition-colors"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between hover:bg-dark-bg/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className="text-base sm:text-lg font-semibold text-white">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div className="text-sm sm:text-base font-semibold text-white">
                       {formatDate(entry.date)}
                     </div>
                     {entry.dailyScore > 0 && (
-                      <div className="px-2 sm:px-3 py-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full">
-                        <span className="text-xs sm:text-sm font-semibold text-blue-400">
+                      <div className="px-2 py-0.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-full">
+                        <span className="text-xs font-semibold text-blue-400">
                           {entry.dailyScore} pts
                         </span>
                       </div>
                     )}
-                    {entry.habits.length > 0 && (
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        {entry.habits.slice(0, 3).map((habit, idx) => {
-                          const habitIcon = getHabitIcon(habit);
-                          if (!habitIcon) return null;
-                          return (
-                            <div
-                              key={idx}
-                              className={`${habitIcon.color} bg-dark-bg rounded-lg p-1 sm:p-1.5 border border-dark-border`}
-                            >
-                              {habitIcon.icon}
-                            </div>
-                          );
-                        })}
-                        {entry.habits.length > 3 && (
-                          <span className="text-xs text-gray-400">+{entry.habits.length - 3}</span>
-                        )}
-                      </div>
-                    )}
                   </div>
                   {hasContent && (
-                    <div className="ml-3 sm:ml-4 flex-shrink-0">
+                    <div className="ml-2 flex-shrink-0">
                       {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
+                        <ChevronUp className="w-4 h-4 text-gray-400" />
                       ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
                       )}
                     </div>
                   )}

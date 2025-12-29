@@ -13,7 +13,7 @@ import {
   getWeekSaturday,
 } from "@/lib/utils";
 import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Lock, Clock } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line } from "recharts";
 import { motion } from "framer-motion";
 
 interface WeeklyRitualProps {
@@ -31,6 +31,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [showScreenTimeHelp, setShowScreenTimeHelp] = useState(false);
   const [lifeChartData, setLifeChartData] = useState<any[]>([]);
   const [wealthChartData, setWealthChartData] = useState<any[]>([]);
+  const [historicalChartData, setHistoricalChartData] = useState<any[]>([]);
+  const [showImpactCharts, setShowImpactCharts] = useState(false);
   const [timeUntilSunday, setTimeUntilSunday] = useState("");
   const [hasSubmittedThisWeek, setHasSubmittedThisWeek] = useState(false);
   const [countdownTime, setCountdownTime] = useState("");
@@ -139,13 +141,6 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         setOriginalScreenTime(screenTimeStr);
         setOriginalSpending(spendingStr);
         setHasSubmittedThisWeek(true);
-        
-        if (weeklyData.screen_time) {
-          setLifeChartData(calculateLifeChart(weeklyData.screen_time));
-        }
-        if (weeklyData.spending) {
-          setWealthChartData(calculateWealthChart(weeklyData.spending));
-        }
       } catch (e) {
         console.error("Error parsing weekly data:", e);
       }
@@ -155,16 +150,56 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       setSpending("");
       setOriginalScreenTime("");
       setOriginalSpending("");
-      setLifeChartData([]);
-      setWealthChartData([]);
       setHasSubmittedThisWeek(false);
     }
+    
+    // Load historical data for charts
+    await loadHistoricalData();
   }, [selectedWeek, userId]);
+
+  const loadHistoricalData = useCallback(async () => {
+    const supabase = createClient();
+    
+    // Load all weekly logs for historical chart
+    const { data: allLogs } = await supabase
+      .from("logs")
+      .select("activity_name, log_date")
+      .eq("user_id", userId)
+      .eq("category", "weekly")
+      .order("log_date", { ascending: true });
+
+    if (allLogs && allLogs.length > 0) {
+      const historicalData = allLogs
+        .map((log) => {
+          try {
+            const weeklyData = JSON.parse(log.activity_name);
+            const weekDate = new Date(log.log_date);
+            return {
+              week: weekDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              screenTime: weeklyData.screen_time || 0,
+              spending: weeklyData.spending || 0,
+            };
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter((item) => item !== null);
+
+      setHistoricalChartData(historicalData);
+    } else {
+      setHistoricalChartData([]);
+    }
+  }, [userId]);
 
   useEffect(() => {
     // Load data for selected week
     loadWeekData();
   }, [loadWeekData]);
+
+  // Load historical data on mount
+  useEffect(() => {
+    loadHistoricalData();
+  }, [loadHistoricalData]);
 
   const navigateWeek = (direction: "prev" | "next" | "current") => {
     let newWeek: Date;
@@ -372,13 +407,29 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       return;
     }
 
+    // Show impact charts temporarily
+    setShowImpactCharts(true);
+    setLifeChartData(calculateLifeChart(screenTimeNum));
+    setWealthChartData(calculateWealthChart(spendingNum));
+    
+    // Hide impact charts after 5 seconds
+    setTimeout(() => {
+      setShowImpactCharts(false);
+      setLifeChartData([]);
+      setWealthChartData([]);
+    }, 5000);
+    
     setIsSubmitted(true);
     setHasSubmittedThisWeek(true);
     setOriginalScreenTime(screenTime);
     setOriginalSpending(spending);
     
-    // Reload data to show the submitted state
-    loadWeekData();
+    // Reload data to show the submitted state (with a delay to ensure DB update completes)
+    setTimeout(async () => {
+      await loadWeekData();
+      // Also reload historical data to update charts
+      await loadHistoricalData();
+    }, 1000);
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -619,62 +670,124 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
         {/* Charts Section */}
         <div className="space-y-4 sm:space-y-6">
-          {/* Life Chart */}
+          {/* Impact Charts (shown temporarily after submission) */}
+          {showImpactCharts && (
+            <>
+              {/* Life Chart */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6"
+              >
+                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Life You Are Losing</h3>
+                {lifeChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={lifeChartData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis type="number" domain={[0, 60]} stroke="#9CA3AF" />
+                      <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={80} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a', color: '#fff' }}
+                        formatter={(value: any) => `${value.toFixed(1)} years`}
+                      />
+                      <Bar dataKey="Sleep & Work" stackId="a" fill="#10b981" />
+                      <Bar dataKey="Time Sent to the Void" stackId="a" fill="#ef4444" />
+                      <Bar dataKey="Free Time Left" stackId="a" fill="#fbbf24" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : null}
+              </motion.div>
+
+              {/* Wealth Chart */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6"
+              >
+                <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Wealth You Burned</h3>
+                {wealthChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={wealthChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="year" stroke="#9CA3AF" />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area 
+                        type="monotone" 
+                        dataKey="Cash Spent" 
+                        stackId="1" 
+                        stroke="#ef4444" 
+                        fill="#ef4444" 
+                        fillOpacity={0.6}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="Investment Potential" 
+                        stackId="2" 
+                        stroke="#10b981" 
+                        fill="#10b981" 
+                        fillOpacity={0.6}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : null}
+              </motion.div>
+            </>
+          )}
+
+          {/* Historical Charts */}
           <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Life You Are Losing</h3>
-            {lifeChartData.length > 0 ? (
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Screen Time History</h3>
+            {historicalChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={lifeChartData} layout="vertical">
+                <LineChart data={historicalChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis type="number" domain={[0, 60]} stroke="#9CA3AF" />
-                  <YAxis dataKey="name" type="category" stroke="#9CA3AF" width={80} />
+                  <XAxis dataKey="week" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a', color: '#fff' }}
-                    formatter={(value: any) => `${value.toFixed(1)} years`}
+                    formatter={(value: any) => `${value.toFixed(1)} hrs/day`}
                   />
-                  <Bar dataKey="Sleep & Work" stackId="a" fill="#10b981" />
-                  <Bar dataKey="Time Sent to the Void" stackId="a" fill="#ef4444" />
-                  <Bar dataKey="Free Time Left" stackId="a" fill="#fbbf24" />
-                </BarChart>
+                  <Line 
+                    type="monotone" 
+                    dataKey="screenTime" 
+                    stroke="#ef4444" 
+                    strokeWidth={2}
+                    dot={{ fill: '#ef4444', r: 4 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-48 flex items-center justify-center text-gray-500 text-sm">
-                Enter screen time to see visualization
+                No historical data yet
               </div>
             )}
           </div>
 
-          {/* Wealth Chart */}
           <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">The Wealth You Burned</h3>
-            {wealthChartData.length > 0 ? (
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Spending History</h3>
+            {historicalChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={wealthChartData}>
+                <LineChart data={historicalChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="year" stroke="#9CA3AF" />
+                  <XAxis dataKey="week" stroke="#9CA3AF" />
                   <YAxis stroke="#9CA3AF" />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="Cash Spent" 
-                    stackId="1" 
-                    stroke="#ef4444" 
-                    fill="#ef4444" 
-                    fillOpacity={0.6}
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a', color: '#fff' }}
+                    formatter={(value: any) => `$${value.toFixed(2)}`}
                   />
-                  <Area 
+                  <Line 
                     type="monotone" 
-                    dataKey="Investment Potential" 
-                    stackId="2" 
+                    dataKey="spending" 
                     stroke="#10b981" 
-                    fill="#10b981" 
-                    fillOpacity={0.6}
+                    strokeWidth={2}
+                    dot={{ fill: '#10b981', r: 4 }}
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-48 flex items-center justify-center text-gray-500 text-sm">
-                Enter spending to see visualization
+                No historical data yet
               </div>
             )}
           </div>
