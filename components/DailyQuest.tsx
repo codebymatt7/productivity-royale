@@ -342,7 +342,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
             <motion.div
               key={quest.category}
               whileHover={!isCompleted ? { scale: 1.02, y: -2 } : {}}
-              className={`rounded-xl p-2.5 sm:p-3 flex flex-col transition-all relative overflow-hidden min-h-[140px] ${
+              className={`rounded-xl p-2.5 sm:p-3 flex flex-col transition-all relative overflow-hidden min-h-[120px] ${
                 getColorClasses(quest.color, isCompleted)
               }`}
             >
@@ -395,35 +395,33 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 </motion.button>
               ) : quest.type === "number" ? (
                 <div className="mt-auto space-y-2">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => {
                         const newValue = Math.max(0, currentValue - 1);
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
-                      className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-4 h-4" />
                     </button>
-                    <input
-                      type="number"
-                      value={currentValue}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        setValues(new Map(values).set(quest.category, val));
-                      }}
-                      className="flex-1 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
-                      placeholder="0"
-                      min="0"
-                    />
+                    <div className="flex-1 text-center">
+                      {currentValue > 0 ? (
+                        <div className="text-lg font-bold text-white">{currentValue}</div>
+                      ) : (
+                        <div className="text-sm text-white/40">
+                          {quest.category === "reading" ? "Pages" : "People"}
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => {
                         const newValue = currentValue + 1;
                         setValues(new Map(values).set(quest.category, newValue));
                       }}
-                      className="w-6 h-6 rounded bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-4 h-4" />
                     </button>
                   </div>
                   {currentValue > 0 && (
@@ -453,19 +451,46 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
                 </div>
               ) : quest.type === "sleep" ? (
                 <div className="mt-auto space-y-2">
-                  <input
-                    type="number"
-                    value={currentValue || ""}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setValues(new Map(values).set(quest.category, val));
-                    }}
-                    className="w-full px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
-                    placeholder="Hours"
-                    min="0"
-                    max="24"
-                    step="0.5"
-                  />
+                  <div className="text-center">
+                    {currentValue > 0 ? (
+                      <div className="text-lg font-bold text-white">{currentValue}h</div>
+                    ) : (
+                      <div className="text-sm text-white/40">Hours</div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => {
+                        const newValue = Math.max(0, (currentValue || 0) - 0.5);
+                        setValues(new Map(values).set(quest.category, newValue));
+                      }}
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={currentValue || ""}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setValues(new Map(values).set(quest.category, val));
+                      }}
+                      className="flex-1 px-2 py-1.5 bg-transparent border-b-2 border-white/20 focus:border-white/50 text-white text-center text-sm font-semibold focus:outline-none transition-colors"
+                      placeholder="0"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                    />
+                    <button
+                      onClick={() => {
+                        const newValue = (currentValue || 0) + 0.5;
+                        setValues(new Map(values).set(quest.category, newValue));
+                      }}
+                      className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                   {currentValue > 0 && (
                     <div className={`text-[10px] sm:text-xs text-center font-medium ${getStatusColor(quest, currentValue)}`}>
                       {currentValue === 8

@@ -160,6 +160,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
   const navigateWeek = (direction: "prev" | "next" | "current") => {
     let newWeek: Date;
+    const today = new Date();
+    const currentWeekSunday = getWeekSunday(today);
     
     if (direction === "current") {
       const activeWeek = getActiveWeek();
@@ -171,15 +173,19 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       if (direction === "prev") {
         newWeek.setDate(selectedWeek.getDate() - 7);
       } else {
-        newWeek.setDate(selectedWeek.getDate() + 7);
+        // Don't allow going to future weeks
+        return;
       }
       
       const newWeekSunday = getWeekSunday(newWeek);
-      const today = new Date();
-      const todayWeek = getWeekSunday(today);
+      
+      // Prevent navigating to future weeks
+      if (newWeekSunday.getTime() > currentWeekSunday.getTime()) {
+        return;
+      }
       
       // Check if it's the current week
-      const isCurrent = newWeekSunday.getTime() === todayWeek.getTime();
+      const isCurrent = newWeekSunday.getTime() === currentWeekSunday.getTime();
       const todayDayOfWeek = today.getDay();
       
       setIsCurrentWeek(isCurrent);
@@ -436,8 +442,9 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         
         <button
           onClick={() => navigateWeek("next")}
-          disabled={!canGoNext}
-          className="p-2 hover:bg-dark-card rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          disabled={true}
+          className="p-2 hover:bg-dark-card rounded-lg transition-colors opacity-30 cursor-not-allowed"
+          title="Cannot navigate to future weeks"
         >
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </button>

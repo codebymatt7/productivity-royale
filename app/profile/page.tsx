@@ -171,13 +171,12 @@ export default function ProfilePage() {
                   Username
                 </label>
                 <div className="text-white">{username}</div>
-                <p className="text-xs text-gray-500">Used for login (cannot be changed)</p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 flex items-center gap-2">
                   <UserIcon className="w-4 h-4" />
-                  Display Name
+                  Display Name <span className="text-xs text-gray-500">(shown on leaderboard)</span>
                 </label>
                 {isEditingDisplayName ? (
                   <div className="flex gap-2">
@@ -242,7 +241,6 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-                <p className="text-xs text-gray-500">Shown on leaderboard</p>
               </div>
 
               <div className="space-y-2">
@@ -255,7 +253,7 @@ export default function ProfilePage() {
 
               <div className="space-y-2">
                 <label className="text-sm text-gray-400">Total Points</label>
-                <div className="text-2xl font-semibold text-blue-400">{stats.total_points}</div>
+                <div className="text-2xl font-semibold text-blue-400">{Math.max(0, stats.total_points || 0)}</div>
               </div>
             </div>
 
