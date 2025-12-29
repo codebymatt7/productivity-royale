@@ -46,40 +46,65 @@ export default function Leaderboard() {
       
       if (usersError) {
         console.error("Error loading users:", usersError);
+        alert(`Leaderboard error: ${usersError.message}. Please check RLS policies.`);
+      }
+      
+      console.log("All users loaded:", allUsers?.length || 0, "users");
+      if (allUsers) {
+        allUsers.forEach(u => {
+          console.log(`  - User: ${u.username || u.display_name || u.id}, ID: ${u.id}`);
+        });
       }
       
       // Get all character_stats
       const { data: allStats, error: statsError } = await supabase
         .from("character_stats")
-        .select("user_id, total_points")
+        .select("user_id, total_points, strength, intelligence, charisma, willpower")
         .limit(50);
       
       if (statsError) {
         console.error("Error loading stats:", statsError);
+        alert(`Leaderboard stats error: ${statsError.message}. Please check RLS policies.`);
+      }
+      
+      console.log("All stats loaded:", allStats?.length || 0, "entries");
+      if (allStats) {
+        allStats.forEach(s => {
+          console.log(`  - User ID: ${s.user_id}, Points: ${s.total_points}`);
+        });
       }
       
       // Create a map of user_id -> stats for quick lookup
-      const statsMap = new Map();
+      const statsMap = new Map<string, number>();
       if (allStats) {
         allStats.forEach(stat => {
-          statsMap.set(stat.user_id, stat.total_points ?? 0);
+          // Ensure we're using the actual total_points value, not null/undefined
+          const points = stat.total_points !== null && stat.total_points !== undefined 
+            ? Number(stat.total_points) 
+            : 0;
+          statsMap.set(stat.user_id, points);
+          console.log(`Mapped user ${stat.user_id} to ${points} points`);
         });
       }
       
       // Combine users with their stats (default to 0 if no stats)
       const combinedStats: any[] = [];
-      if (allUsers) {
+      if (allUsers && allUsers.length > 0) {
         allUsers.forEach(user => {
+          const userPoints = statsMap.get(user.id) ?? 0;
           combinedStats.push({
             user_id: user.id,
-            total_points: statsMap.get(user.id) ?? 0,
+            total_points: userPoints,
             users: {
               id: user.id,
               username: user.username,
               display_name: user.display_name
             }
           });
+          console.log(`Combined: ${user.username || user.display_name} (${user.id}) = ${userPoints} points`);
         });
+      } else {
+        console.warn("No users found! This might be an RLS issue.");
       }
       
       // Sort by total_points descending
