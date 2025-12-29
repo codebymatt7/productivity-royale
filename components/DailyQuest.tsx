@@ -64,17 +64,27 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
     async function loadTodayLogs() {
       const supabase = createClient();
       
-      // Load daily affirmation
-      const { data: journalData } = await supabase
-        .from("journal_logs")
-        .select("morning_intention")
-        .eq("user_id", userId)
-        .eq("date", today)
-        .maybeSingle();
-      
-      if (journalData?.morning_intention) {
-        setDailyAffirmation(journalData.morning_intention);
-      } else {
+      // Load daily affirmation (handle case where table might not exist)
+      try {
+        const { data: journalData, error: journalError } = await supabase
+          .from("journal_logs")
+          .select("morning_intention")
+          .eq("user_id", userId)
+          .eq("date", today)
+          .maybeSingle();
+        
+        if (journalError && !journalError.message.includes("does not exist")) {
+          console.error("Error loading journal:", journalError);
+        }
+        
+        if (journalData?.morning_intention) {
+          setDailyAffirmation(journalData.morning_intention);
+        } else {
+          setDailyAffirmation("");
+        }
+      } catch (e) {
+        // Table might not exist yet, just continue without affirmation
+        console.error("Journal table not available:", e);
         setDailyAffirmation("");
       }
       

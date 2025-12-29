@@ -48,6 +48,12 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       const now = new Date();
       const diff = nextSunday.getTime() - now.getTime();
       
+      if (diff <= 0) {
+        setTimeUntilSunday("Available now");
+        setCountdownTime("Available now");
+        return;
+      }
+      
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -63,6 +69,39 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Update countdown when selected week changes
+  useEffect(() => {
+    const updateTimer = () => {
+      // Calculate if current week
+      const today = new Date();
+      const currentWeekSunday = getWeekSunday(today);
+      const selectedWeekSunday = getWeekSunday(selectedWeek);
+      const isCurrentWeek = selectedWeekSunday.getTime() === currentWeekSunday.getTime();
+      
+      if (isCurrentWeek && hasSubmittedThisWeek) {
+        const nextSunday = getNextSunday();
+        const now = new Date();
+        const diff = nextSunday.getTime() - now.getTime();
+        
+        if (diff <= 0) {
+          setCountdownTime("Available now");
+          return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        setCountdownTime(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [selectedWeek, hasSubmittedThisWeek]);
 
   const loadWeekData = useCallback(async () => {
     const weekSunday = getWeekSundayString(selectedWeek);
@@ -187,6 +226,12 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       return;
     }
 
+    // Prevent duplicate submission for current week
+    if (hasSubmittedThisWeek && isOnCurrentWeek) {
+      alert("You have already submitted your weekly ritual for this week. Come back next Sunday!");
+      return;
+    }
+
     const screenTimeNum = parseFloat(screenTime);
     const spendingNum = parseFloat(spending);
 
@@ -197,6 +242,10 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     setLifeChartData(calculateLifeChart(screenTimeNum));
     setWealthChartData(calculateWealthChart(spendingNum));
+
+    // Calculate for display (not used in scoring)
+    const wealthDestroyed = calculateWealthDestroyed(spendingNum);
+    const lifeWasted = calculateLifeWasted(screenTimeNum);
 
     // Screen time scoring: Baseline 3 hours
     // 2 hours = good (gives points)
@@ -273,6 +322,22 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       }
     }
     
+    // Check if already submitted for this week (double-check)
+    const { data: existingCheck } = await supabase
+      .from("logs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("category", "weekly")
+      .eq("log_date", weekSunday)
+      .maybeSingle();
+
+    if (existingCheck && isOnCurrentWeek) {
+      alert("You have already submitted your weekly ritual for this week.");
+      setHasSubmittedThisWeek(true);
+      loadWeekData();
+      return;
+    }
+
     const { error } = await supabase.from("logs").insert({
       user_id: userId,
       activity_name: weeklyData,

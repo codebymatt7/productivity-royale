@@ -5,8 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail, User as UserIcon, Calendar, LogOut } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
