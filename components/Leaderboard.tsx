@@ -38,40 +38,57 @@ export default function Leaderboard() {
         setCurrentUserId(user.id);
       }
 
-      // Get all users first
-      const { data: allUsers, error: usersError } = await supabase
+      // Try to get users - if RLS blocks, we'll see an error
+      const { data: allUsers, error: usersError, count: usersCount } = await supabase
         .from("users")
-        .select("id, username, display_name")
+        .select("id, username, display_name", { count: 'exact' })
         .limit(50);
       
       if (usersError) {
-        console.error("Error loading users:", usersError);
-        alert(`Leaderboard error: ${usersError.message}. Please check RLS policies.`);
+        console.error("❌ Error loading users:", usersError);
+        console.error("Error details:", JSON.stringify(usersError, null, 2));
+        // Don't alert - just log for debugging
       }
       
-      console.log("All users loaded:", allUsers?.length || 0, "users");
-      if (allUsers) {
-        allUsers.forEach(u => {
-          console.log(`  - User: ${u.username || u.display_name || u.id}, ID: ${u.id}`);
+      console.log("✅ Users query result:", {
+        count: usersCount,
+        dataLength: allUsers?.length || 0,
+        error: usersError?.message || "none"
+      });
+      
+      if (allUsers && allUsers.length > 0) {
+        console.log("📋 Users loaded:", allUsers.length);
+        allUsers.forEach((u, idx) => {
+          console.log(`  ${idx + 1}. User: ${u.username || u.display_name || 'no name'}, ID: ${u.id.substring(0, 8)}...`);
         });
+      } else {
+        console.warn("⚠️ No users returned! This is likely an RLS issue.");
       }
       
       // Get all character_stats
-      const { data: allStats, error: statsError } = await supabase
+      const { data: allStats, error: statsError, count: statsCount } = await supabase
         .from("character_stats")
-        .select("user_id, total_points, strength, intelligence, charisma, willpower")
+        .select("user_id, total_points, strength, intelligence, charisma, willpower", { count: 'exact' })
         .limit(50);
       
       if (statsError) {
-        console.error("Error loading stats:", statsError);
-        alert(`Leaderboard stats error: ${statsError.message}. Please check RLS policies.`);
+        console.error("❌ Error loading stats:", statsError);
+        console.error("Error details:", JSON.stringify(statsError, null, 2));
       }
       
-      console.log("All stats loaded:", allStats?.length || 0, "entries");
-      if (allStats) {
-        allStats.forEach(s => {
-          console.log(`  - User ID: ${s.user_id}, Points: ${s.total_points}`);
+      console.log("✅ Stats query result:", {
+        count: statsCount,
+        dataLength: allStats?.length || 0,
+        error: statsError?.message || "none"
+      });
+      
+      if (allStats && allStats.length > 0) {
+        console.log("📊 Stats loaded:", allStats.length);
+        allStats.forEach((s, idx) => {
+          console.log(`  ${idx + 1}. User ID: ${s.user_id.substring(0, 8)}..., Points: ${s.total_points} (STR: ${s.strength}, INT: ${s.intelligence}, CHA: ${s.charisma}, WIL: ${s.willpower})`);
         });
+      } else {
+        console.warn("⚠️ No stats returned! Users might not have character_stats entries.");
       }
       
       // Create a map of user_id -> stats for quick lookup
