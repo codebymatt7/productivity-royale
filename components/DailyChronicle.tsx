@@ -195,7 +195,7 @@ export default function DailyChronicle({ userId }: DailyChronicleProps) {
             value={affirmation}
             onChange={(e) => setAffirmation(e.target.value)}
             placeholder="What is your main quest today?"
-            disabled={affirmationSaved && !isEditingDisplayName}
+            disabled={affirmationSaved && !isEditingAffirmation}
             className="w-full h-32 sm:h-40 px-4 py-3 bg-[#1a1f2e] border border-dark-border rounded-xl text-white font-mono text-sm focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
               fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",

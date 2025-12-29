@@ -73,27 +73,36 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   // Update countdown when selected week changes
   useEffect(() => {
     const updateTimer = () => {
-      // Calculate if current week
       const today = new Date();
       const currentWeekSunday = getWeekSunday(today);
       const selectedWeekSunday = getWeekSunday(selectedWeek);
       const isCurrentWeek = selectedWeekSunday.getTime() === currentWeekSunday.getTime();
+      const isFutureWeek = selectedWeekSunday.getTime() > currentWeekSunday.getTime();
       
-      if (isCurrentWeek && hasSubmittedThisWeek) {
-        const nextSunday = getNextSunday();
-        const now = new Date();
-        const diff = nextSunday.getTime() - now.getTime();
-        
+      if (isFutureWeek) {
+        // Future week - countdown to that week's Sunday
+        const diff = selectedWeekSunday.getTime() - today.getTime();
         if (diff <= 0) {
           setCountdownTime("Available now");
           return;
         }
-        
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        
+        setCountdownTime(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+      } else if (isCurrentWeek && hasSubmittedThisWeek) {
+        // Current week, already submitted - countdown to next Sunday
+        const nextSunday = getNextSunday();
+        const diff = nextSunday.getTime() - today.getTime();
+        if (diff <= 0) {
+          setCountdownTime("Available now");
+          return;
+        }
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         setCountdownTime(`${days}d ${hours}h ${minutes}m ${seconds}s`);
       }
     };
@@ -457,15 +466,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
                   <span className="text-sm text-gray-400">Time until this check-in:</span>
                 </div>
                 <div className="text-3xl sm:text-4xl font-bold text-blue-400 font-mono">
-                  {(() => {
-                    const diff = selectedWeekSunday.getTime() - today.getTime();
-                    if (diff <= 0) return "Available now";
-                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-                  })()}
+                  {countdownTime || timeUntilSunday || "Calculating..."}
                 </div>
               </div>
             </motion.div>
