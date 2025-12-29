@@ -40,7 +40,8 @@ export default function Arena({ userId }: ArenaProps) {
         setStats(data);
         // Combat Power = (STR + INT + WIL) / 10
         setCombatPower(Math.floor((data.strength + data.intelligence + data.willpower) / 10));
-        setLevel(Math.floor((data.total_points || 0) / 100));
+        // Level can never be negative - minimum is 1
+        setLevel(Math.max(1, Math.floor((data.total_points || 0) / 100)));
       }
 
       // Load today's battle score

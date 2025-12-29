@@ -32,6 +32,8 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
   const [lifeChartData, setLifeChartData] = useState<any[]>([]);
   const [wealthChartData, setWealthChartData] = useState<any[]>([]);
   const [timeUntilSunday, setTimeUntilSunday] = useState("");
+  const [hasSubmittedThisWeek, setHasSubmittedThisWeek] = useState(false);
+  const [countdownTime, setCountdownTime] = useState("");
 
   useEffect(() => {
     // Initialize with active week
@@ -42,21 +44,22 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
     // Update countdown timer
     const updateTimer = () => {
-      if (activeWeek.isLocked && activeWeek.isCurrentWeek) {
-        const nextSunday = getNextSunday();
-        const now = new Date();
-        const diff = nextSunday.getTime() - now.getTime();
-        
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        
-        setTimeUntilSunday(`${days}d ${hours}h ${minutes}m`);
-      }
+      const nextSunday = getNextSunday();
+      const now = new Date();
+      const diff = nextSunday.getTime() - now.getTime();
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      const timerString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      setTimeUntilSunday(timerString);
+      setCountdownTime(timerString);
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 60000); // Update every minute
+    const interval = setInterval(updateTimer, 1000); // Update every second
 
     return () => clearInterval(interval);
   }, []);
@@ -81,6 +84,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         const weeklyData = JSON.parse(logs[0].activity_name);
         setScreenTime(weeklyData.screen_time?.toString() || "");
         setSpending(weeklyData.spending?.toString() || "");
+        setHasSubmittedThisWeek(true);
         
         if (weeklyData.screen_time) {
           setLifeChartData(calculateLifeChart(weeklyData.screen_time));
@@ -97,6 +101,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       setSpending("");
       setLifeChartData([]);
       setWealthChartData([]);
+      setHasSubmittedThisWeek(false);
     }
   }, [selectedWeek, userId]);
 
@@ -105,26 +110,36 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     loadWeekData();
   }, [loadWeekData]);
 
-  const navigateWeek = (direction: "prev" | "next") => {
-    const newWeek = new Date(selectedWeek);
-    if (direction === "prev") {
-      newWeek.setDate(selectedWeek.getDate() - 7);
+  const navigateWeek = (direction: "prev" | "next" | "current") => {
+    let newWeek: Date;
+    
+    if (direction === "current") {
+      const activeWeek = getActiveWeek();
+      newWeek = activeWeek.weekStart;
+      setIsLocked(activeWeek.isLocked);
+      setIsCurrentWeek(activeWeek.isCurrentWeek);
     } else {
-      newWeek.setDate(selectedWeek.getDate() + 7);
+      newWeek = new Date(selectedWeek);
+      if (direction === "prev") {
+        newWeek.setDate(selectedWeek.getDate() - 7);
+      } else {
+        newWeek.setDate(selectedWeek.getDate() + 7);
+      }
+      
+      const newWeekSunday = getWeekSunday(newWeek);
+      const today = new Date();
+      const todayWeek = getWeekSunday(today);
+      
+      // Check if it's the current week
+      const isCurrent = newWeekSunday.getTime() === todayWeek.getTime();
+      const todayDayOfWeek = today.getDay();
+      
+      setIsCurrentWeek(isCurrent);
+      setIsLocked(isCurrent && todayDayOfWeek !== 0);
+      newWeek = newWeekSunday;
     }
     
-    const newWeekSunday = getWeekSunday(newWeek);
-    const today = new Date();
-    const todayWeek = getWeekSunday(today);
-    
-    // Check if it's the current week
-    const isCurrent = newWeekSunday.getTime() === todayWeek.getTime();
-    const todayDayOfWeek = today.getDay();
-    
-    // Lock if it's current week and not Sunday
-    setSelectedWeek(newWeekSunday);
-    setIsCurrentWeek(isCurrent);
-    setIsLocked(isCurrent && todayDayOfWeek !== 0);
+    setSelectedWeek(newWeek);
   };
 
   const calculateLifeChart = (hoursPerDay: number) => {
@@ -252,17 +267,10 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
     }
 
     setIsSubmitted(true);
+    setHasSubmittedThisWeek(true);
     
-    alert(
-      `Reality Check Complete:\n\n` +
-      `Wealth Destroyed: $${wealthDestroyed.toFixed(2)} (30-year compound interest)\n` +
-      `Life Wasted: ${lifeWasted.toFixed(2)} years\n\n` +
-      `Penalty: ${totalPenalty} points`
-    );
-
-    setTimeout(() => {
-      setIsSubmitted(false);
-    }, 3000);
+    // Reload data to show the submitted state
+    loadWeekData();
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -283,7 +291,10 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
 
   const weekRange = getWeekRangeString(selectedWeek);
   const today = new Date();
-  const canGoNext = getWeekSunday(selectedWeek).getTime() < getWeekSunday(today).getTime();
+  const currentWeekSunday = getWeekSunday(today);
+  const selectedWeekSunday = getWeekSunday(selectedWeek);
+  const canGoNext = selectedWeekSunday.getTime() < currentWeekSunday.getTime();
+  const isOnCurrentWeek = selectedWeekSunday.getTime() === currentWeekSunday.getTime();
 
   return (
     <div className="p-4 sm:p-6">
@@ -301,6 +312,14 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
           <div className="text-2xl sm:text-4xl font-bold text-white mb-1">
             {weekRange}
           </div>
+          {!isOnCurrentWeek && (
+            <button
+              onClick={() => navigateWeek("current")}
+              className="mt-2 px-3 py-1 text-xs sm:text-sm bg-blue-500/20 border border-blue-500/50 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+            >
+              Go to Current Week
+            </button>
+          )}
           {isLocked && isCurrentWeek && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -320,7 +339,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
         
         <button
           onClick={() => navigateWeek("next")}
-          disabled={canGoNext}
+          disabled={!canGoNext}
           className="p-2 hover:bg-dark-card rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -328,9 +347,37 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Form Section */}
+        {/* Form Section or Countdown */}
         <div className="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {hasSubmittedThisWeek && isOnCurrentWeek ? (
+            // Show countdown timer after submission
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center space-y-6"
+            >
+              <div className="text-4xl mb-4">✅</div>
+              <h3 className="text-xl sm:text-2xl font-semibold text-white mb-2">
+                Weekly Ritual Complete
+              </h3>
+              <p className="text-gray-400 mb-6">
+                You&apos;ve completed your weekly check-in for this week.
+              </p>
+              <div className="bg-dark-bg border border-dark-border rounded-xl p-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <span className="text-sm text-gray-400">Next ritual available in:</span>
+                </div>
+                <div className="text-3xl sm:text-4xl font-bold text-blue-400 font-mono">
+                  {countdownTime || timeUntilSunday}
+                </div>
+                <p className="text-xs text-gray-500 mt-4">
+                  Come back on Sunday to complete your next weekly ritual
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Screen Time (Hours/Day)
@@ -430,6 +477,7 @@ export default function WeeklyRitual({ userId }: WeeklyRitualProps) {
               )}
             </button>
           </form>
+          )}
         </div>
 
         {/* Charts Section */}

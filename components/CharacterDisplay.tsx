@@ -68,7 +68,8 @@ export default function CharacterDisplay({ currentMonthPoints, userId }: Charact
           charisma: data.charisma || 0,
           willpower: data.willpower || 0,
         });
-        setLevel(Math.floor((data.total_points || 0) / 100));
+        // Level can never be negative - minimum is 1
+        setLevel(Math.max(1, Math.floor((data.total_points || 0) / 100)));
       }
     }
 

@@ -100,7 +100,8 @@ export default function Home() {
         .maybeSingle();
 
       if (stats) {
-        setLifetimeLevel(Math.floor(stats.total_points / 100));
+        // Level can never be negative - minimum is 1
+        setLifetimeLevel(Math.max(1, Math.floor((stats.total_points || 0) / 100)));
       }
 
       setLoading(false);
@@ -115,9 +116,10 @@ export default function Home() {
           .from("character_stats")
           .select("total_points")
           .eq("user_id", userId)
-          .single();
+          .maybeSingle();
         if (stats) {
-          setLifetimeLevel(Math.floor(stats.total_points / 100));
+          // Level can never be negative - minimum is 1
+          setLifetimeLevel(Math.max(1, Math.floor((stats.total_points || 0) / 100)));
         }
       }
     }, 5000);
