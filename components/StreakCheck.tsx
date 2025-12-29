@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getTodayDateString } from "@/lib/utils";
 import { getYesterdayDateString } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -30,32 +31,18 @@ export default function StreakCheck({ userId, onPenaltyApplied }: StreakCheckPro
         .eq("log_date", yesterday)
         .limit(1);
 
-      // If no logs for yesterday, apply penalty
+      // If no logs for yesterday, show motivational message (no penalty)
       if (!data || data.length === 0) {
-        // Check if we already applied penalty today
-        const today = new Date().toISOString().split('T')[0];
-        const { data: penaltyCheck } = await supabase
-          .from("logs")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("category", "penalty")
-          .eq("log_date", today)
-          .limit(1);
-
-        if (!penaltyCheck || penaltyCheck.length === 0) {
-          // Apply -50 point penalty
-          const { error } = await supabase.from("logs").insert({
-            user_id: userId,
-            activity_name: "Slept on your potential",
-            points: -50,
-            category: "penalty",
-            log_date: today,
-          });
-
-          if (!error) {
-            setShowModal(true);
-            onPenaltyApplied();
-          }
+        // Check if we already showed the modal today
+        const today = getTodayDateString();
+        const checkKey = `streakCheckShown_${userId}_${today}`;
+        const hasShownToday = localStorage.getItem(checkKey);
+        
+        if (!hasShownToday) {
+          // No penalty - just show motivational message
+          setShowModal(true);
+          localStorage.setItem(checkKey, "true");
+          // Don't call onPenaltyApplied() since we're not applying penalties
         }
       }
 
@@ -80,7 +67,7 @@ export default function StreakCheck({ userId, onPenaltyApplied }: StreakCheckPro
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-dark-card border-2 border-neon-pink rounded-lg p-8 max-w-md mx-4 relative"
+            className="bg-dark-card border-2 border-yellow-500/50 rounded-2xl p-6 sm:p-8 max-w-md mx-4 relative"
           >
             <button
               onClick={() => setShowModal(false)}
@@ -89,19 +76,18 @@ export default function StreakCheck({ userId, onPenaltyApplied }: StreakCheckPro
               <X />
             </button>
             <div className="text-center">
-              <div className="text-4xl mb-4">💀</div>
-              <h3 className="text-2xl font-serif text-neon-pink mb-4 glow-pink">
+              <div className="text-4xl mb-4">💪</div>
+              <h3 className="text-2xl font-semibold text-yellow-400 mb-4">
                 You Slept on Your Potential
               </h3>
               <p className="text-gray-300 mb-6">
-                You missed your daily quests yesterday. The opportunity is lost forever.
+                You missed your daily quests yesterday. While you rested, others outworked you. Time to get back in the game! 🔥
               </p>
-              <div className="text-3xl font-bold text-red-500 mb-4">-50 pts</div>
               <button
                 onClick={() => setShowModal(false)}
-                className="px-6 py-2 bg-neon-pink text-black font-bold rounded hover:bg-opacity-80"
+                className="px-6 py-2 bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 font-semibold rounded-xl hover:bg-yellow-500/30 transition-colors"
               >
-                Accept the Loss
+                Let&apos;s Go
               </button>
             </div>
           </motion.div>
