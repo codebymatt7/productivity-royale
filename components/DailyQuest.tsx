@@ -213,7 +213,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       // Toggle off - delete the log and subtract points
       const supabase = createClient();
       
-      // First, find the log to delete
+      // First, find the log to delete and save its value for later
       const { data: logs, error: fetchError } = await supabase
         .from("logs")
         .select("id, points, value")
@@ -230,6 +230,20 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         return;
       }
       
+      // Save the value before deleting (so we can restore it in the input)
+      let savedValue: number | null = null;
+      if (logs && logs.length > 0) {
+        const logValue = logs[0].value;
+        if (logValue !== null && logValue !== undefined) {
+          savedValue = parseFloat(logValue.toString());
+        }
+      }
+      
+      // Default values if no saved value
+      if (savedValue === null || isNaN(savedValue)) {
+        savedValue = quest.type === "sleep" ? 8 : 0;
+      }
+      
       if (!logs || logs.length === 0) {
         console.warn("No log found to delete, but state says completed. Clearing state.");
         // Log not found, but state says completed - clear the state anyway
@@ -237,13 +251,10 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
         newTodayCompleted.delete(quest.category);
         setTodayCompleted(newTodayCompleted);
         
+        // Keep the current value in the input (don't reset)
         if (quest.type !== "binary") {
           const newValues = new Map(values);
-          if (quest.type === "sleep") {
-            newValues.set(quest.category, 8);
-          } else {
-            newValues.set(quest.category, 0);
-          }
+          newValues.set(quest.category, savedValue);
           setValues(newValues);
         }
         isDeletingRef.current = false;
@@ -252,7 +263,7 @@ export default function DailyQuest({ userId }: DailyQuestProps) {
       }
       
       const logToDelete = logs[0];
-      console.log("Deleting log:", logToDelete.id, "Category:", quest.category, "Points:", logToDelete.points);
+      console.log("Deleting log:", logToDelete.id, "Category:", quest.category, "Points:", logToDelete.points, "Value:", savedValue);
       
       // Delete the log (trigger will handle point subtraction)
       const { error: deleteError } = await supabase
